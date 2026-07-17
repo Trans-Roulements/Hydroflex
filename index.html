@@ -1943,11 +1943,11 @@ function imprimerFiche(){
   const w=window.open('','_blank','width=900,height=1150');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>OT ${o.ref}</title>
   <style>
-    @page{size:A4 portrait;margin:10mm 15mm 10mm 15mm;}
+    @page{size:A4 portrait;margin:10mm 12mm 10mm 22mm;}
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{width:100%;height:100%;}
     body{font-family:Arial,sans-serif;color:#000;background:white;font-size:12px;
-      display:flex;flex-direction:column;min-height:267mm;}
+      display:flex;flex-direction:column;min-height:267mm;padding-left:2mm;}
 
     /* EN-TÊTE */
     .header{display:flex;border:2px solid #000;margin-bottom:0;width:100%;}
@@ -2385,10 +2385,29 @@ function parseCsvClient(text){
   document.getElementById('csv-cli-preview-zone').style.display='block';
 }
 async function importCsvClient(){
+  if(!csvClientsParsed.length)return toast('Aucune donnée à importer','error');
   try{
-    await sb.from('clients').upsert(csvClientsParsed.map(r=>({...r,updated_at:new Date().toISOString()})),{onConflict:'nom'});
-    toast(`✅ ${csvClientsParsed.length} client(s) importés !`);resetCsvClient();await loadClients();renderClients();
-  }catch(e){toast('❌ Erreur import : '+e.message,'error');}
+    const rows=csvClientsParsed.map(r=>({...r,updated_at:new Date().toISOString()}));
+    const {error}=await sb.from('clients').insert(rows);
+    if(error) throw error;
+    toast(`✅ ${rows.length} client(s) importés !`);
+    resetCsvClient();
+    await loadClients();
+    renderClients();
+  }catch(e){
+    // Si erreur de doublon, essayer un par un
+    if(e.message&&e.message.includes('duplicate')){
+      let ok=0,skip=0;
+      for(const r of csvClientsParsed){
+        const {error}=await sb.from('clients').insert({...r,updated_at:new Date().toISOString()});
+        if(error)skip++;else ok++;
+      }
+      toast(`✅ ${ok} importé(s), ${skip} doublon(s) ignoré(s)`);
+      resetCsvClient();await loadClients();renderClients();
+    }else{
+      toast('❌ Erreur import : '+e.message,'error');
+    }
+  }
 }
 function resetCsvClient(){csvClientsParsed=[];document.getElementById('csv-cli-preview-zone').style.display='none';document.getElementById('csv-cli-preview').innerHTML='';document.getElementById('csv-cli-file').value='';}
 function showCsvClientError(msg){const el=document.getElementById('csv-cli-error');el.textContent='⚠️ '+msg;el.style.display='flex';}
