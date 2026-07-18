@@ -1432,7 +1432,7 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
         <select id="s-cat"><option>Tuyau</option><option>Embout</option><option>Raccord</option><option>Jupe</option><option>Accessoire</option></select>
       </div>
       <div class="form-group"><label>Unité</label>
-        <select id="s-unite"><option>pcs</option><option>m</option><option>kg</option></select>
+        <select id="s-unite"><option>pcs</option><option>m</option><option>kg</option><option>l</option><option>boite</option></select>
       </div>
       <div class="form-group"><label>Stock actuel *</label><input type="number" id="s-stock" min="0"></div>
       <div class="form-group"><label>Seuil minimum *</label><input type="number" id="s-seuil" min="0"></div>
@@ -2534,7 +2534,7 @@ function toggleEditArticle(){
    <div style="padding:5px 0;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Désignation</div>${inp('nom',a.nom)}</div>
    <div style="padding:5px 0;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Catégorie</div>${inp('cat',a.cat,'text',['Tuyau','Embout','Raccord','Jupe','Accessoire','Flexible'])}</div>
    <div style="padding:5px 0;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Seuil minimum</div>${inp('seuil',a.seuil,'number')}</div>
-   <div style="padding:5px 0"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Unité</div>${inp('unite',a.unite,'text',['pcs','m','ml','kg','g','l','boite'])}</div>`;
+   <div style="padding:5px 0"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Unité</div>${inp('unite',a.unite,'text',['pcs','m','kg','l','boite'])}</div>`;
 }
 
 function renderFicheArtInfo(a){
