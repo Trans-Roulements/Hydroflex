@@ -1935,91 +1935,84 @@ async function saveBL(){
 function imprimerFiche(){
   if(!currentOrdre)return;
   if(currentOrdre.validationStatut!=='valide'){
-    toast('❌ Impossible d\'imprimer — ordre non validé par l\'admin','error');return;
+    toast('Impossible d\'imprimer — ordre non validé par l\'admin','error');return;
   }
   const o=currentOrdre;
   const site=SITES[o.site]||{name:o.site,color:'#f5a623'};
+  const chk=(ok)=>ok
+    ?'<span style="display:inline-block;width:16px;height:16px;border:2px solid #000;background:#000;margin-right:8px;vertical-align:middle"></span>'
+    :'<span style="display:inline-block;width:16px;height:16px;border:2px solid #000;margin-right:8px;vertical-align:middle"></span>';
   const w=window.open('','_blank','width=794,height=1123');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>OT ${o.ref}</title>
   <style>
     @page{size:A4 portrait;margin:15mm 15mm 15mm 20mm;}
     *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:Arial,sans-serif;color:#111;font-size:11px;width:175mm;}
+    body{font-family:Arial,sans-serif;color:#111;font-size:11px;width:175mm;display:block;}
 
-    /* HEADER */
-    .hdr{width:100%;border-collapse:collapse;border:2px solid #000;margin-bottom:0;}
+    .hdr{width:100%;border-collapse:collapse;border:2px solid #000;}
     .hdr td{padding:0;vertical-align:middle;}
-    .hdr-num{padding:8px 12px;width:180px;border-right:2px solid #000;font-size:11px;}
-    .hdr-num b{font-size:13px;}
-    .hdr-title{text-align:center;font-size:26px;font-weight:900;letter-spacing:3px;padding:8px;}
+    .hdr-num{padding:8px 12px;width:180px;border-right:2px solid #000;font-size:11px;line-height:1.6;}
+    .hdr-title{text-align:center;font-size:26px;font-weight:900;letter-spacing:3px;padding:10px;}
     .hdr-site{width:110px;border-left:2px solid #000;text-align:center;padding:8px;}
-    .site-tag{display:inline-block;background:${site.color};color:white;padding:4px 12px;border-radius:3px;font-weight:800;font-size:12px;}
-    .client-bar{width:100%;border:2px solid #000;border-top:none;padding:8px 12px;font-size:16px;font-weight:900;margin-bottom:8px;}
+    .site-tag{display:inline-block;background:${site.color};color:white;padding:5px 12px;border-radius:3px;font-weight:800;font-size:12px;}
+    .client-bar{border:2px solid #000;border-top:none;padding:10px 12px;font-size:17px;font-weight:900;margin-bottom:10px;display:block;}
 
-    /* SECTION TITLES */
     .stitle{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;
-      border-bottom:2px solid #000;padding-bottom:4px;margin:8px 0 6px 0;width:100%;}
-    .sub{font-size:10px;font-weight:700;text-transform:uppercase;color:#555;margin:5px 0 3px 0;}
+      border-bottom:2px solid #000;padding-bottom:5px;margin:12px 0 8px 0;display:block;clear:both;}
+    .sub{font-size:10px;font-weight:700;text-transform:uppercase;color:#555;margin:6px 0 4px 0;display:block;}
 
-    /* TABLES */
     .tbl{width:100%;border-collapse:collapse;margin-bottom:6px;}
     .tbl th{background:#eee;font-size:10px;font-weight:700;text-transform:uppercase;
-      padding:6px 8px;border:1px solid #000;text-align:center;letter-spacing:.3px;}
+      padding:6px 8px;border:1px solid #000;text-align:center;}
     .tbl td{border:1px solid #000;text-align:center;vertical-align:middle;}
-    .tbl td.ref{font-size:13px;font-weight:700;padding:8px 6px;}
-    .tbl td.qty{font-size:20px;font-weight:900;padding:6px;}
+    .tbl td.ref{font-size:13px;font-weight:700;padding:9px 6px;}
+    .tbl td.qty{font-size:20px;font-weight:900;padding:8px;}
     .tbl td.flex{border-left:2.5px solid #000;border-right:2.5px solid #000;background:#f9f9f9;}
     .tbl td.sep-left{border-left:2.5px solid #000;}
 
-    /* MARQUAGE */
-    .marq{display:flex;gap:40px;padding:8px 4px 4px 4px;}
-    .cb-row{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;}
-    .cb{width:18px;height:18px;border:2px solid #000;display:inline-flex;align-items:center;
-      justify-content:center;font-size:14px;font-weight:900;flex-shrink:0;}
+    .marq-block{padding:10px 0 8px 0;display:block;}
+    .marq-row{display:flex;gap:50px;align-items:center;}
+    .chk-item{display:flex;align-items:center;font-size:13px;font-weight:700;}
 
-    /* VÉRIFICATION */
-    .vrow{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
-    .vlbl{display:flex;align-items:center;gap:10px;min-width:250px;font-size:12px;font-weight:700;}
-    .vfields{display:flex;gap:20px;flex:1;}
+    .verif-block{display:block;padding:4px 0;}
+    .vrow{display:flex;align-items:center;gap:14px;padding:8px 0;border-bottom:1px dotted #ddd;}
+    .vrow:last-child{border-bottom:none;}
+    .vlbl{display:flex;align-items:center;min-width:250px;font-size:13px;font-weight:700;}
+    .vfields{display:flex;gap:24px;flex:1;}
     .vf{font-size:10px;font-weight:700;text-transform:uppercase;display:flex;align-items:center;gap:6px;}
     .vline{border-bottom:1.5px solid #000;min-width:120px;height:18px;padding:0 4px;
       font-size:11px;font-weight:700;display:inline-flex;align-items:flex-end;}
 
-    /* FACTURATION */
-    .fact{width:100%;border-collapse:collapse;border:1px solid #000;margin-bottom:0;}
-    .fact td{border:1px solid #000;padding:8px 10px;vertical-align:top;}
+    .fact{width:100%;border-collapse:collapse;border:1px solid #000;}
+    .fact td{border:1px solid #000;padding:10px 12px;vertical-align:top;}
     .fact .lbl{font-size:8px;font-weight:700;text-transform:uppercase;color:#777;
-      display:block;margin-bottom:4px;letter-spacing:.5px;}
+      display:block;margin-bottom:5px;letter-spacing:.5px;}
     .fact .val{font-size:15px;font-weight:800;}
-    .fact .bl-row{font-size:11px;border-bottom:1px solid #eee;padding:3px 0;display:flex;align-items:center;gap:8px;}
+    .fact .bl-row{font-size:11px;border-bottom:1px solid #eee;padding:4px 0;display:flex;align-items:center;gap:8px;}
 
-    /* PIED */
     .foot{width:100%;border-collapse:collapse;border:1px solid #000;border-top:none;}
-    .foot td{border:1px solid #000;padding:10px 8px;min-height:55px;width:20%;vertical-align:top;}
+    .foot td{border:1px solid #000;padding:12px 8px;min-height:60px;width:20%;vertical-align:top;}
     .foot .lbl{font-size:8px;font-weight:700;text-transform:uppercase;color:#777;
-      display:block;border-bottom:1px solid #eee;margin-bottom:5px;padding-bottom:3px;letter-spacing:.5px;}
+      display:block;border-bottom:1px solid #eee;margin-bottom:6px;padding-bottom:3px;letter-spacing:.5px;}
     .foot .val{font-size:12px;font-weight:700;}
-
-    .pfooter{margin-top:8px;font-size:8px;color:#bbb;text-align:right;border-top:1px solid #eee;padding-top:5px;}
+    .pfooter{margin-top:10px;font-size:8px;color:#bbb;text-align:right;border-top:1px solid #eee;padding-top:5px;display:block;}
     @media print{button{display:none!important;}}
   </style></head><body>
 
-  <!-- HEADER -->
   <table class="hdr"><tr>
     <td class="hdr-num">
-      N° &nbsp;<b>${o.ref}</b><br>
-      Client : &nbsp;<b>${o.client||'—'}</b>
-      ${o.clientNcc?'<br>NCC : &nbsp;<b>'+o.clientNcc+'</b>':''}
+      N° &nbsp;<strong>${o.ref}</strong><br>
+      Client : &nbsp;<strong>${o.client||'—'}</strong>
+      ${o.clientNcc?'<br>NCC : &nbsp;<strong>'+o.clientNcc+'</strong>':''}
     </td>
     <td class="hdr-title">ORDRE DE TRAVAIL</td>
     <td class="hdr-site">
       <div class="site-tag">${site.name}</div>
-      <div style="font-size:9px;color:#666;margin-top:5px">${new Date(o.createdAt).toLocaleDateString('fr-FR')}</div>
+      <div style="font-size:9px;color:#666;margin-top:6px">${new Date(o.createdAt).toLocaleDateString('fr-FR')}</div>
     </td>
   </tr></table>
   <div class="client-bar">${o.client||'—'}</div>
 
-  <!-- IDENTIFICATION DES TRAVAUX -->
   <div class="stitle">Identification des travaux</div>
 
   <div class="sub">Notification client</div>
@@ -2037,20 +2030,15 @@ function imprimerFiche(){
     </tr>
   </table>
 
-  <div class="sub" style="margin-top:8px">Application</div>
+  <div class="sub" style="margin-top:10px">Application</div>
   <table class="tbl">
     <tr>
-      <th>Embout</th><th>Jupe</th>
-      <th class="flex">Flexible</th>
-      <th>Jupe</th><th>Embout</th>
+      <th>Embout</th><th>Jupe</th><th class="flex">Flexible</th><th>Jupe</th><th>Embout</th>
     </tr>
     <tr>
       <td class="ref">${o.emboutA||'—'}</td>
       <td class="ref">${o.jupeA||'—'}</td>
-      <td class="ref flex">
-        ${o.refFlex||o.dn||'—'}
-        <div style="font-size:9px;color:#888;margin-top:3px">${o.dn||''}</div>
-      </td>
+      <td class="ref flex">${o.refFlex||o.dn||'—'}<div style="font-size:9px;color:#888;margin-top:3px">${o.dn||''}</div></td>
       <td class="ref">${o.jupeB||'—'}</td>
       <td class="ref">${o.emboutB||'—'}</td>
     </tr>
@@ -2063,49 +2051,44 @@ function imprimerFiche(){
     </tr>
   </table>
 
-  <!-- MARQUAGE -->
   <div class="stitle">Marquage</div>
-  <div class="marq">
-    <div class="cb-row"><div class="cb">${o.marquage==='OUI'?'✕':''}</div> OUI</div>
-    <div class="cb-row"><div class="cb">${o.marquage==='NON'?'✕':''}</div> NON</div>
+  <div class="marq-block">
+    <div class="marq-row">
+      <div class="chk-item">${chk(o.marquage==='OUI')} OUI</div>
+      <div class="chk-item">${chk(o.marquage==='NON')} NON</div>
+    </div>
   </div>
 
-  <!-- VÉRIFICATION -->
   <div class="stitle">Identification de la vérification</div>
-  <div class="vrow">
-    <div class="vlbl"><div class="cb">${o.typeVerification==='aucune'?'✕':''}</div> PAS DE VERIFICATION</div>
-  </div>
-  <div class="vrow">
-    <div class="vlbl"><div class="cb">${o.typeVerification==='banc'?'✕':''}</div> BANC D'EPREUVES</div>
-    <div class="vfields">
-      <div class="vf">PRESSION DE RUPTURE <span class="vline">${o.typeVerification==='banc'&&o.pressionRupture?o.pressionRupture+' bar':''}</span></div>
-      <div class="vf">PRESSION D'ESSAI <span class="vline">${o.typeVerification==='banc'&&o.pressionEssai?o.pressionEssai+' bar':''}</span></div>
+  <div class="verif-block">
+    <div class="vrow">
+      <div class="vlbl">${chk(o.typeVerification==='aucune')} PAS DE VERIFICATION</div>
     </div>
-  </div>
-  <div class="vrow" style="margin-bottom:4px">
-    <div class="vlbl"><div class="cb">${o.typeVerification==='veritas'?'✕':''}</div> VERITAS (joindre rapport)</div>
-    <div class="vfields">
-      <div class="vf">CONFORME <span class="vline">${o.typeVerification==='veritas'&&o.conformite==='oui'?'OUI':''}</span></div>
-      <div class="vf">NON-CONFORME <span class="vline">${o.typeVerification==='veritas'&&o.conformite==='non'?'NON':''}</span></div>
+    <div class="vrow">
+      <div class="vlbl">${chk(o.typeVerification==='banc')} BANC D'EPREUVES</div>
+      <div class="vfields">
+        <div class="vf">PRESSION DE RUPTURE <span class="vline">${o.typeVerification==='banc'&&o.pressionRupture?o.pressionRupture+' bar':''}</span></div>
+        <div class="vf">PRESSION D'ESSAI <span class="vline">${o.typeVerification==='banc'&&o.pressionEssai?o.pressionEssai+' bar':''}</span></div>
+      </div>
+    </div>
+    <div class="vrow">
+      <div class="vlbl">${chk(o.typeVerification==='veritas')} VERITAS (joindre rapport)</div>
+      <div class="vfields">
+        <div class="vf">CONFORME <span class="vline">${o.typeVerification==='veritas'&&o.conformite==='oui'?'OUI':''}</span></div>
+        <div class="vf">NON-CONFORME <span class="vline">${o.typeVerification==='veritas'&&o.conformite==='non'?'NON':''}</span></div>
+      </div>
     </div>
   </div>
 
-  <!-- FACTURATION -->
   <div class="stitle">Identification de la facturation</div>
   <table class="fact">
     <tr>
-      <td style="width:28%">
-        <span class="lbl">N° Code client (NCC)</span>
-        <span class="val">${o.clientNcc||o.client||'—'}</span>
-      </td>
-      <td style="width:24%">
-        <span class="lbl">N° de Proforma</span>
-        <span class="val">${o.numProforma||'—'}</span>
-      </td>
+      <td style="width:28%"><span class="lbl">N° Code client (NCC)</span><span class="val">${o.clientNcc||o.client||'—'}</span></td>
+      <td style="width:24%"><span class="lbl">N° de Proforma</span><span class="val">${o.numProforma||'—'}</span></td>
       <td>
         <span class="lbl">N° du Bon de Livraison</span>
-        <div class="bl-row"><span style="color:#888;min-width:95px">INFORMATIQUE :</span><strong>${o.numBl||'—'}</strong></div>
-        <div class="bl-row"><span style="color:#888;min-width:95px">MANUEL :</span></div>
+        <div class="bl-row"><span style="color:#888;min-width:100px">INFORMATIQUE :</span><strong>${o.numBl||'—'}</strong></div>
+        <div class="bl-row"><span style="color:#888;min-width:100px">MANUEL :</span></div>
       </td>
     </tr>
   </table>
@@ -2119,7 +2102,7 @@ function imprimerFiche(){
     </tr>
   </table>
 
-  <div class="pfooter">HydroFlex ${site.name} — ${o.ref} — Imprimé le ${new Date().toLocaleString('fr-FR')}</div>
+  <span class="pfooter">HydroFlex ${site.name} — ${o.ref} — Imprimé le ${new Date().toLocaleString('fr-FR')}</span>
   <script>window.print();<\/script></body></html>`);
   w.document.close();
 }
