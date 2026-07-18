@@ -2375,8 +2375,10 @@ function handleCsvClient(file){if(!file)return;const r=new FileReader();r.onload
 function parseCsvClient(text){
   const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
   if(lines.length<2)return showCsvClientError('Fichier vide.');
-  const headers=lines[0].split(/[,;]/).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
-  if(!headers.includes('nom'))return showCsvClientError('Colonne "nom" manquante.');
+  const firstLine=lines[0];
+  const sep=firstLine.split(';').length>firstLine.split(',').length?';':',';
+  const headers=firstLine.split(sep).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
+  if(!headers.includes('nom'))return showCsvClientError('Colonne "nom" manquante. Colonnes trouvées : '+headers.join(', '));
   const rows=[];
   for(let i=1;i<lines.length;i++){
     const c=lines[i].split(sep).map(x=>x.trim().replace(/^"|"$/g,''));
