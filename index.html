@@ -2733,14 +2733,24 @@ function parseCsv(text){
   const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
   if(lines.length<2)return showCsvError('Fichier vide.');
   const headers=lines[0].split(/[,;]/).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
-  const findCol=(...variants)=>{for(const v of variants){const i=headers.indexOf(v);if(i>=0)return i;}return -1;};
-  const iRef=findCol('reference','ref','code','article');
-  const iDes=findCol('designation','nom','libelle','description','name','article');
+  // findCol cherche la première colonne correspondant à une des variantes
+  // Supporte aussi les noms partiels (ex: 'stock m' pour 'stock minimum')
+  const findCol=(...variants)=>{
+    for(const v of variants){
+      const exact=headers.indexOf(v);
+      if(exact>=0)return exact;
+      const partial=headers.findIndex(h=>h.startsWith(v)||h.includes(v));
+      if(partial>=0)return partial;
+    }
+    return -1;
+  };
+  const iRef=findCol('code','reference','ref','article');
+  const iDes=findCol('designation','nom','libelle','description','name');
   const iCat=findCol('categorie','category','cat','type','famille');
-  const iStk=findCol('stock_actuel','stock','quantite','qte','qty','quantity');
-  const iSeuil=findCol('seuil_minimum','seuil','mini','minimum','min');
+  const iStk=findCol('stock','quantite','qte','qty','quantity','stock_actuel');
+  const iSeuil=findCol('stock m','stock mini','stock min','seuil','mini','minimum','min','seuil_minimum');
   const iUnite=findCol('unite','unit','um');
-  const iRefFour=findCol('ref_fournisseur','ref_four','fournisseur','supplier_ref');
+  const iRefFour=findCol('reference fourni','ref fourni','ref_fournisseur','fournisseur','supplier');
   if(iRef<0)return showCsvError('Colonne référence introuvable. Colonnes : '+headers.join(', '));
   if(iDes<0)return showCsvError('Colonne désignation introuvable. Colonnes : '+headers.join(', '));
   const rows=[];
