@@ -2761,8 +2761,8 @@ function parseCsv(text){
     rows.push({
       reference:ref,designation:des,
       categorie:iCat>=0&&c[iCat]?c[iCat]:'Accessoire',
-      stock_actuel:iStk>=0&&c[iStk]!==''?parseFloat(c[iStk].replace(',','.'))||0:0,
-      seuil_minimum:iSeuil>=0&&c[iSeuil]!==''?parseFloat(c[iSeuil].replace(',','.'))||0:0,
+      stock_actuel:iStk>=0&&c[iStk]!==''?parseFloat(c[iStk].replace(/\s/g,'').replace(',','.'))||0:0,
+      seuil_minimum:iSeuil>=0&&c[iSeuil]!==''?parseFloat(c[iSeuil].replace(/\s/g,'').replace(',','.'))||0:0,
       unite:iUnite>=0&&c[iUnite]?c[iUnite]:'pcs',
       ref_fournisseur:iRefFour>=0&&c[iRefFour]?c[iRefFour]:null,
     });
