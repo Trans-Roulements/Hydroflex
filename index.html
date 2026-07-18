@@ -2750,12 +2750,35 @@ function parseCsv(text){
 }
 async function importCsv(){
   try{
-    const sites=['zone3','yopougon','sanpedro'];const rows=[];
-    csvParsed.forEach(r=>{sites.forEach(site=>{rows.push({reference:r.reference,ref_fournisseur:r.ref_fournisseur||null,designation:r.designation,categorie:r.categorie||'Accessoire',stock_actuel:site===currentSite?parseFloat(r.stock_actuel)||0:0,seuil_minimum:parseFloat(r.seuil_minimum)||0,unite:r.unite||'pcs',site_id:site});});});
-    const {error}=await sb.from('stock_composants').upsert(rows,{onConflict:'reference,site_id'});
-    if(error) throw error;
-    toast(`✅ ${csvParsed.length} article(s) importés !`);resetCsv();await loadStock();renderStock();
-  }catch(e){toast('❌ Erreur import : '+e.message,'error');}
+    const sites=['zone3','yopougon','sanpedro'];
+    // Dédupliquer par référence (garder le dernier)
+    const dedupMap={};
+    csvParsed.forEach(r=>{dedupMap[r.reference]=r;});
+    const dedup=Object.values(dedupMap);
+    if(dedup.length<csvParsed.length){
+      toast(`⚠️ ${csvParsed.length-dedup.length} doublon(s) ignoré(s)`);}
+    // Construire les lignes par site
+    const rows=[];
+    dedup.forEach(r=>{sites.forEach(site=>{rows.push({
+      reference:r.reference,ref_fournisseur:r.ref_fournisseur||null,
+      designation:r.designation,categorie:r.categorie||'Accessoire',
+      stock_actuel:site===currentSite?parseFloat(r.stock_actuel)||0:0,
+      seuil_minimum:parseFloat(r.seuil_minimum)||0,
+      unite:r.unite||'pcs',site_id:site
+    });});});
+    // Import par lots de 50
+    showLoader(`Import de ${dedup.length} articles...`);
+    let ok=0;
+    for(let i=0;i<rows.length;i+=50){
+      const lot=rows.slice(i,i+50);
+      const {error}=await sb.from('stock_composants').upsert(lot,{onConflict:'reference,site_id'});
+      if(error) throw error;
+      ok+=lot.length/sites.length;
+    }
+    hideLoader();
+    toast(`✅ ${Math.round(ok)} article(s) importés !`);
+    resetCsv();await loadStock();renderStock();
+  }catch(e){hideLoader();toast('❌ Erreur import : '+e.message,'error');}
 }
 function resetCsv(){csvParsed=[];document.getElementById('csv-preview-zone').style.display='none';document.getElementById('csv-preview').innerHTML='';document.getElementById('csv-file').value='';}
 function showCsvError(msg){const el=document.getElementById('csv-error');el.textContent='⚠️ '+msg;el.style.display='flex';}
