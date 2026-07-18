@@ -1722,12 +1722,27 @@ function showPage(page){
 
 function renderCurrentPage(){
   const a=document.querySelector('.page.active');
-  if(a){
-    const page=a.id.replace('page-','');
-    // Ne pas rafraîchir la page nouvel-ordre (formulaire en cours de saisie)
-    if(page==='nouvel-ordre') return;
-    renderPage(page);
+  if(!a) return;
+  const page=a.id.replace('page-','');
+
+  // Ne jamais rafraîchir si on est en mode saisie
+  if(page==='nouvel-ordre') return;
+
+  // Ne pas rafraîchir si un modal est ouvert
+  if(document.querySelector('.modal-overlay.open')) return;
+
+  // Ne pas rafraîchir si on est dans une sous-vue active (inventaire)
+  if(page==='inventaire'){
+    const saisie=document.getElementById('inv-vue-saisie');
+    const nouveau=document.getElementById('inv-vue-nouveau');
+    if((saisie&&saisie.style.display!=='none')||(nouveau&&nouveau.style.display!=='none')) return;
   }
+
+  // Ne pas rafraîchir si un aperçu CSV est visible (import en cours)
+  const csvPreviews=['csv-preview-zone','csv-cli-preview-zone','csv-op-preview-zone'];
+  if(csvPreviews.some(id=>{const el=document.getElementById(id);return el&&el.style.display!=='none';})) return;
+
+  renderPage(page);
 }
 
 function renderPage(p){
