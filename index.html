@@ -2375,14 +2375,15 @@ function handleCsvClient(file){if(!file)return;const r=new FileReader();r.onload
 function parseCsvClient(text){
   const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
   if(lines.length<2)return showCsvClientError('Fichier vide.');
-  const firstLine=lines[0];
-  const sep=firstLine.split(';').length>firstLine.split(',').length?';':',';
-  const headers=firstLine.split(sep).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
-  if(!headers.includes('nom'))return showCsvClientError('Colonne "nom" manquante. Colonnes trouvées : '+headers.join(', '));
+  // Utiliser les deux séparateurs (virgule ET point-virgule)
+  const split=l=>l.split(/;|,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(x=>x.trim().replace(/^"|"$/g,''));
+  const headers=split(lines[0]).map(h=>h.toLowerCase().replace(/['"]/g,''));
+  if(!headers.includes('nom'))return showCsvClientError('Colonne "nom" manquante.\nColonnes trouvées : '+headers.join(', '));
   const rows=[];
   for(let i=1;i<lines.length;i++){
-    const c=lines[i].split(sep).map(x=>x.trim().replace(/^"|"$/g,''));
-    const r={nom:c[headers.indexOf('nom')]||''};if(!r.nom)continue;
+    const c=split(lines[i]);
+    const r={nom:c[headers.indexOf('nom')]||''};
+    if(!r.nom)continue;
     ['ncc','contact','telephone','email','adresse','ville','code_postal'].forEach(k=>{
       const idx=headers.indexOf(k);if(idx>=0)r[k]=c[idx]||null;
     });
