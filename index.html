@@ -2365,7 +2365,7 @@ function parseCsvClient(text){
   if(!headers.includes('nom'))return showCsvClientError('Colonne "nom" manquante.');
   const rows=[];
   for(let i=1;i<lines.length;i++){
-    const c=lines[i].split(/[,;]/).map(x=>x.trim().replace(/^"|"$/g,''));
+    const c=lines[i].split(sep).map(x=>x.trim().replace(/^"|"$/g,''));
     const r={nom:c[headers.indexOf('nom')]||''};if(!r.nom)continue;
     ['ncc','contact','telephone','email','adresse','ville','code_postal'].forEach(k=>{
       const idx=headers.indexOf(k);if(idx>=0)r[k]=c[idx]||null;
@@ -2474,7 +2474,7 @@ function parseCsvOp(text){
   if(!headers.includes('nom'))return showCsvOpError('Colonne "nom" manquante.');
   const rows=[];
   for(let i=1;i<lines.length;i++){
-    const c=lines[i].split(/[,;]/).map(x=>x.trim().replace(/^"|"$/g,''));
+    const c=lines[i].split(sep).map(x=>x.trim().replace(/^"|"$/g,''));
     const r={nom:c[headers.indexOf('nom')]||''};if(!r.nom)continue;
     ['poste','telephone','email'].forEach(k=>{const idx=headers.indexOf(k);if(idx>=0)r[k]=c[idx]||null;});
     r.actif=true;r.site_id=currentSite;rows.push(r);
@@ -2732,7 +2732,14 @@ function handleCsvFile(file){if(!file)return;const r=new FileReader();r.onload=e
 function parseCsv(text){
   const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
   if(lines.length<2)return showCsvError('Fichier vide.');
-  const headers=lines[0].split(/[,;]/).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
+  // Détecter le séparateur : si la 1ère ligne a plus de ';' que de ',', c'est ';'
+  const firstLine=lines[0];
+  const sep=firstLine.split(';').length>firstLine.split(',').length?';':',';
+  if(sep===','){
+    showCsvError('⚠️ Ton fichier utilise des virgules comme séparateurs. Dans Excel : Enregistrer sous → CSV UTF-8 (délimité par des points-virgules)');
+    return;
+  }
+  const headers=lines[0].split(sep).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
   // findCol cherche la première colonne correspondant à une des variantes
   // Supporte aussi les noms partiels (ex: 'stock m' pour 'stock minimum')
   const findCol=(...variants)=>{
@@ -2755,7 +2762,7 @@ function parseCsv(text){
   if(iDes<0)return showCsvError('Colonne désignation introuvable. Colonnes : '+headers.join(', '));
   const rows=[];
   for(let i=1;i<lines.length;i++){
-    const c=lines[i].split(/[,;]/).map(x=>x.trim().replace(/^"|"$/g,''));
+    const c=lines[i].split(sep).map(x=>x.trim().replace(/^"|"$/g,''));
     const ref=c[iRef]||'';const des=c[iDes]||'';
     if(!ref||!des)continue;
     rows.push({
