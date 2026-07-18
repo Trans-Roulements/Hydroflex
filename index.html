@@ -1304,6 +1304,45 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
 </div>
 
 <!-- MODALS -->
+
+<!-- MODAL FICHE ARTICLE -->
+<div class="modal-overlay" id="modal-fiche-article">
+  <div class="modal" style="max-width:720px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="modal-title" id="fiche-art-titre" style="margin-bottom:0">📄 Fiche Article</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="imprimerFicheArticle()">🖨️ Imprimer</button>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-fiche-article')">✕ Fermer</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="table-card" style="margin:0">
+        <div class="table-header" style="padding:10px 14px"><div class="table-title" style="font-size:12px">🔩 Informations</div></div>
+        <div style="padding:12px 14px" id="fiche-art-info"></div>
+      </div>
+      <div class="table-card" style="margin:0">
+        <div class="table-header" style="padding:10px 14px"><div class="table-title" style="font-size:12px">📦 Stock par site</div></div>
+        <div style="padding:12px 14px" id="fiche-art-stocks"></div>
+      </div>
+    </div>
+    <div class="table-card" style="margin-bottom:12px">
+      <div class="table-header"><div class="table-title" style="font-size:12px">⚙️ Ordres de fabrication liés</div></div>
+      <table><thead><tr><th>Référence</th><th>Client</th><th>Date</th><th>Statut</th></tr></thead>
+      <tbody id="fiche-art-ordres"></tbody></table>
+    </div>
+    <div class="table-card" style="margin-bottom:12px">
+      <div class="table-header"><div class="table-title" style="font-size:12px">🔄 Transferts inter-sites</div></div>
+      <table><thead><tr><th>N° BT</th><th>De</th><th>Vers</th><th>Qté</th><th>Date</th><th>Statut</th></tr></thead>
+      <tbody id="fiche-art-transferts"></tbody></table>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><div class="table-title" style="font-size:12px">📊 Historique inventaires</div></div>
+      <table><thead><tr><th>Date</th><th>Site</th><th>Qté système</th><th>Qté comptée</th><th>Écart</th></tr></thead>
+      <tbody id="fiche-art-inv"></tbody></table>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-ordre">
   <div class="modal">
     <div class="modal-title" id="modal-ref">Détail</div>
@@ -2455,6 +2494,174 @@ async function importCsvOp(){
 function resetCsvOp(){csvOpParsed=[];document.getElementById('csv-op-preview-zone').style.display='none';document.getElementById('csv-op-preview').innerHTML='';document.getElementById('csv-op-file').value='';}
 function showCsvOpError(msg){const el=document.getElementById('csv-op-error');el.textContent='⚠️ '+msg;el.style.display='flex';}
 
+// ── FICHE ARTICLE ──
+let currentArticle=null;
+
+async function openFicheArticle(id){
+  const art=stockData.find(s=>s.id===id);
+  if(!art)return;
+  currentArticle=art;
+  document.getElementById('fiche-art-titre').textContent=`📄 Fiche Article — ${art.ref}`;
+
+  // Infos générales
+  document.getElementById('fiche-art-info').innerHTML=[
+    ['Référence',`<code style="color:var(--cyan)">${art.ref}</code>`],
+    ['Réf. fournisseur',art.refFour||'—'],
+    ['Désignation',`<strong>${art.nom}</strong>`],
+    ['Catégorie',art.cat],
+    ['Unité',art.unite],
+    ['Seuil mini',art.seuil+' '+art.unite],
+  ].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text-muted)">${k}</span><span>${v}</span></div>`).join('');
+
+  // Stock par site
+  const memeRef=stockData.filter(s=>s.ref===art.ref);
+  document.getElementById('fiche-art-stocks').innerHTML=memeRef.length===0
+    ?'<div style="color:var(--text-muted);font-size:12px">Aucun stock</div>'
+    :memeRef.map(s=>{
+      const ok=s.stock>=s.seuil;
+      const site=SITES[s.site]||{name:s.site,color:'var(--text)'};
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="color:${site.color};font-weight:700;font-size:12px">${site.name}</span>
+        <span style="font-size:14px;font-weight:800;color:${ok?'var(--success)':'var(--danger)'}">${s.stock} ${s.unite}</span>
+        <span class="badge ${ok?'badge-done':'badge-urgent'}" style="font-size:10px">${ok?'✅ OK':'🔴 Critique'}</span>
+      </div>`;
+    }).join('');
+
+  // Ordres liés (chercher par ref article dans les composants)
+  const allOrdres=[...ordres,...ordresTermines];
+  const ordresLies=allOrdres.filter(o=>
+    o.refA===art.ref||o.refB===art.ref||
+    o.jupeA===art.ref||o.jupeB===art.ref||
+    o.emboutA===art.ref||o.emboutB===art.ref||
+    o.raccordA===art.ref||o.raccordB===art.ref||
+    o.refFlex===art.ref||
+    (o.jupeARef||'')=== art.ref||(o.jupeBRef||'')=== art.ref
+  ).slice(0,10);
+  // Chercher aussi dans Supabase par ref
+  const {data:ordresDB}=await sb.from('ordres_fabrication')
+    .select('reference,client,created_at,statut,validation_statut')
+    .or(`jupe_a_ref.eq.${art.ref},jupe_b_ref.eq.${art.ref},embout_a_ref.eq.${art.ref},embout_b_ref.eq.${art.ref},raccord_a_ref.eq.${art.ref},raccord_b_ref.eq.${art.ref},ref_flexible.eq.${art.ref}`)
+    .order('created_at',{ascending:false}).limit(10);
+  const ordresFinal=ordresDB&&ordresDB.length>0?ordresDB:ordresLies;
+  const vL={a_valider:'⏳ À valider',valide:'✅ Validé',refuse:'❌ Refusé',termine:'✅ Terminé'};
+  document.getElementById('fiche-art-ordres').innerHTML=ordresFinal.length===0
+    ?'<tr class="empty"><td colspan="4">Aucun ordre lié</td></tr>'
+    :ordresFinal.map(o=>`<tr>
+      <td><code>${o.reference||o.ref}</code></td>
+      <td>${o.client||'—'}</td>
+      <td>${new Date(o.created_at||o.createdAt).toLocaleDateString('fr-FR')}</td>
+      <td><span class="badge badge-progress" style="font-size:10px">${vL[o.validation_statut||o.validationStatut]||o.statut||'—'}</span></td>
+    </tr>`).join('');
+
+  // Transferts liés
+  const {data:transDB}=await sb.from('transferts')
+    .select('*').or(`article_ref.eq.${art.ref}`)
+    .order('created_at',{ascending:false}).limit(8);
+  const trans=transDB||[];
+  const sL={en_attente:'⏳ Attente',valide:'✅ Validé',refuse:'❌ Refusé'};
+  document.getElementById('fiche-art-transferts').innerHTML=trans.length===0
+    ?'<tr class="empty"><td colspan="6">Aucun transfert</td></tr>'
+    :trans.map(t=>`<tr>
+      <td><code>${t.numero_bt||'—'}</code></td>
+      <td>${SITES[t.site_source]?.name||t.site_source}</td>
+      <td>${SITES[t.site_dest]?.name||t.site_dest}</td>
+      <td><strong>${t.quantite} ${t.unite||art.unite}</strong></td>
+      <td>${new Date(t.created_at).toLocaleDateString('fr-FR')}</td>
+      <td><span class="badge badge-progress" style="font-size:10px">${sL[t.statut]||t.statut}</span></td>
+    </tr>`).join('');
+
+  // Inventaires liés
+  const {data:invDB}=await sb.from('inventaire_lignes')
+    .select('*,inventaires(created_at,site_id,statut)')
+    .eq('article_ref',art.ref)
+    .order('created_at',{ascending:false}).limit(8);
+  const invs=invDB||[];
+  document.getElementById('fiche-art-inv').innerHTML=invs.length===0
+    ?'<tr class="empty"><td colspan="5">Aucun inventaire</td></tr>'
+    :invs.map(l=>{
+      const ecart=l.ecart;
+      const ecartColor=ecart===null?'var(--text-muted)':ecart===0?'var(--success)':ecart>0?'var(--cyan)':'var(--danger)';
+      return`<tr>
+        <td>${l.inventaires?new Date(l.inventaires.created_at).toLocaleDateString('fr-FR'):'—'}</td>
+        <td>${l.inventaires?SITES[l.inventaires.site_id]?.name||l.inventaires.site_id:'—'}</td>
+        <td>${l.qte_theorique} ${l.article_unite}</td>
+        <td>${l.qte_comptee!==null?l.qte_comptee+' '+l.article_unite:'Non compté'}</td>
+        <td style="color:${ecartColor};font-weight:700">${ecart!==null?(ecart===0?'✅ 0':(ecart>0?'+':'')+ecart):'—'}</td>
+      </tr>`;
+    }).join('');
+
+  document.getElementById('modal-fiche-article').classList.add('open');
+}
+
+function imprimerFicheArticle(){
+  if(!currentArticle)return;
+  const art=currentArticle;
+  const memeRef=stockData.filter(s=>s.ref===art.ref);
+  const chk=(ok)=>ok
+    ?'<span style="display:inline-block;width:14px;height:14px;border:2px solid #000;background:#000;vertical-align:middle;margin-right:6px"></span>'
+    :'<span style="display:inline-block;width:14px;height:14px;border:2px solid #000;vertical-align:middle;margin-right:6px"></span>';
+  const w=window.open('','_blank','width=794,height=1123');
+  const tbodyOrdres=document.getElementById('fiche-art-ordres').innerHTML.replace(/<button[^>]*>.*?<\/button>/g,'');
+  const tbodyTrans=document.getElementById('fiche-art-transferts').innerHTML.replace(/<button[^>]*>.*?<\/button>/g,'');
+  const tbodyInv=document.getElementById('fiche-art-inv').innerHTML;
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fiche ${art.ref}</title>
+  <style>
+    @page{size:A4 portrait;margin:15mm 15mm 15mm 20mm;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:Arial,sans-serif;color:#111;font-size:11px;width:175mm;}
+    h2{font-size:18px;font-weight:900;letter-spacing:1px;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:12px;}
+    h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+      border-bottom:1.5px solid #000;padding-bottom:4px;margin:14px 0 8px 0;}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;}
+    .info-box{border:1px solid #ccc;border-radius:4px;padding:10px;}
+    .info-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee;font-size:11px;}
+    .info-row span:first-child{color:#666;}
+    .info-row span:last-child{font-weight:700;}
+    .stock-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee;}
+    table{width:100%;border-collapse:collapse;margin-bottom:8px;}
+    th{background:#eee;font-size:10px;font-weight:700;text-transform:uppercase;padding:6px 8px;border:1px solid #000;text-align:left;}
+    td{border:1px solid #ccc;padding:5px 8px;font-size:11px;}
+    .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#eee;}
+    .footer{margin-top:12px;font-size:8px;color:#aaa;text-align:right;border-top:1px solid #eee;padding-top:5px;}
+    @media print{button{display:none!important;}}
+  </style></head><body>
+  <h2>📄 Fiche Article — ${art.ref}</h2>
+  <div class="grid2">
+    <div class="info-box">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px">Informations</div>
+      <div class="info-row"><span>Référence</span><span><strong>${art.ref}</strong></span></div>
+      <div class="info-row"><span>Réf. fournisseur</span><span>${art.refFour||'—'}</span></div>
+      <div class="info-row"><span>Désignation</span><span><strong>${art.nom}</strong></span></div>
+      <div class="info-row"><span>Catégorie</span><span>${art.cat}</span></div>
+      <div class="info-row"><span>Unité</span><span>${art.unite}</span></div>
+      <div class="info-row"><span>Seuil mini</span><span>${art.seuil} ${art.unite}</span></div>
+    </div>
+    <div class="info-box">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px">Stock par site</div>
+      ${memeRef.map(s=>{
+        const ok=s.stock>=s.seuil;
+        return`<div class="stock-row">
+          <span style="font-weight:700">${SITES[s.site]?.name||s.site}</span>
+          <span style="font-size:14px;font-weight:900;color:${ok?'#27ae60':'#e74c3c'}">${s.stock} ${s.unite}</span>
+          <span class="badge" style="background:${ok?'#eafaf1':'#fdedec'};color:${ok?'#27ae60':'#e74c3c'}">${ok?'OK':'Critique'}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+  <h3>Ordres de fabrication liés</h3>
+  <table><thead><tr><th>Référence</th><th>Client</th><th>Date</th><th>Statut</th></tr></thead>
+  <tbody>${tbodyOrdres}</tbody></table>
+  <h3>Transferts inter-sites</h3>
+  <table><thead><tr><th>N° BT</th><th>De</th><th>Vers</th><th>Qté</th><th>Date</th><th>Statut</th></tr></thead>
+  <tbody>${tbodyTrans}</tbody></table>
+  <h3>Historique inventaires</h3>
+  <table><thead><tr><th>Date</th><th>Site</th><th>Qté système</th><th>Qté comptée</th><th>Écart</th></tr></thead>
+  <tbody>${tbodyInv}</tbody></table>
+  <div class="footer">HydroFlex — Fiche Article ${art.ref} — Imprimée le ${new Date().toLocaleString('fr-FR')}</div>
+  <script>window.print();<\/script></body></html>`);
+  w.document.close();
+}
+
 // ── STOCK ──
 function renderStock(){
   const filtCat=(document.getElementById('filter-cat')||{value:''}).value;
@@ -2471,7 +2678,7 @@ function renderStock(){
     :list.map(s=>{
       const ok=s.stock>=s.seuil;
       const siteBadge=isAdmin?`<span style="background:${SITES[s.site]?.bg||''};color:${SITES[s.site]?.color||'var(--text)'};padding:1px 5px;border-radius:3px;font-size:9px;margin-right:4px">${SITES[s.site]?.name||s.site}</span>`:'';
-      return`<tr><td>${siteBadge}<code>${s.ref}</code></td><td style="font-size:11px;color:var(--text-muted)">${s.refFour||'—'}</td><td>${s.nom}</td><td><span style="color:${catCol[s.cat]||'var(--text-muted)'};font-size:12px;font-weight:700">${s.cat}</span></td><td><strong>${s.stock} ${s.unite}</strong></td><td>${s.seuil} ${s.unite}</td><td><span class="badge ${ok?'badge-done':'badge-urgent'}">${ok?'✅ OK':'🔴 Critique'}</span></td><td><button class="icon-btn" onclick="modStock('${s.id}',${s.stock},'${s.unite}','${s.ref}')">✏️</button><button class="icon-btn" style="margin-left:4px" onclick="delStock('${s.id}','${s.ref}')">🗑️</button></td></tr>`;
+      return`<tr><td>${siteBadge}<code>${s.ref}</code></td><td style="font-size:11px;color:var(--text-muted)">${s.refFour||'—'}</td><td>${s.nom}</td><td><span style="color:${catCol[s.cat]||'var(--text-muted)'};font-size:12px;font-weight:700">${s.cat}</span></td><td><strong>${s.stock} ${s.unite}</strong></td><td>${s.seuil} ${s.unite}</td><td><span class="badge ${ok?'badge-done':'badge-urgent'}">${ok?'✅ OK':'🔴 Critique'}</span></td><td style="display:flex;gap:4px"><button class="icon-btn" onclick="openFicheArticle('${s.id}')">📄</button><button class="icon-btn" onclick="modStock('${s.id}',${s.stock},'${s.unite}','${s.ref}')">✏️</button><button class="icon-btn" onclick="delStock('${s.id}','${s.ref}')">🗑️</button></td></tr>`;
     }).join('');
 }
 function openAddStock(){
