@@ -994,7 +994,19 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
           <div class="table-card">
             <div class="table-header"><div class="table-title">📥 Import CSV — Stock</div></div>
             <div style="padding:24px">
-              <div class="csv-format-hint"><code>reference</code> <code>ref_fournisseur</code> <code>designation</code> <code>categorie</code> <code>stock_actuel</code> <code>seuil_minimum</code> <code>unite</code></div>
+              <div class="csv-format-hint">
+                <strong style="color:var(--text)">En-têtes acceptées :</strong><br>
+                <code>code</code> <code>reference</code> <code>designation</code> <code>categorie</code> <code>stock</code> <code>stock min</code> <code>unite</code><br>
+                <div style="margin-top:8px;display:flex;align-items:center;gap:10px">
+                  <span style="font-size:11px">Séparateur :</span>
+                  <select id="csv-sep" style="background:var(--steel);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text);font-size:12px;outline:none">
+                    <option value="auto">Auto-détect</option>
+                    <option value=";">Point-virgule ; (recommandé)</option>
+                    <option value=",">Virgule ,</option>
+                  </select>
+                  <span style="font-size:10px;color:var(--text-muted)">Excel FR → Enregistrer sous → CSV UTF-8 (délimité par des points-virgules)</span>
+                </div>
+              </div>
               <div class="csv-drop-zone" id="csv-drop" onclick="document.getElementById('csv-file').click()" ondragover="csvDragOver(event)" ondragleave="csvDragLeave()" ondrop="csvDrop(event)">
                 <div class="csv-drop-icon">📂</div><div class="csv-drop-text"><strong>Cliquez</strong> ou <strong>glissez-déposez</strong></div>
                 <input type="file" id="csv-file" accept=".csv,.txt" style="display:none" onchange="handleCsvFile(this.files[0])">
@@ -1311,6 +1323,8 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div class="modal-title" id="fiche-art-titre" style="margin-bottom:0">📄 Fiche Article</div>
       <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" id="btn-fiche-edit" onclick="toggleEditArticle()">✏️ Modifier</button>
+        <button class="btn btn-success btn-sm" id="btn-fiche-save" style="display:none" onclick="saveArticle()">💾 Enregistrer</button>
         <button class="btn btn-secondary btn-sm" onclick="imprimerFicheArticle()">🖨️ Imprimer</button>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-fiche-article')">✕ Fermer</button>
       </div>
@@ -2494,6 +2508,79 @@ async function importCsvOp(){
 function resetCsvOp(){csvOpParsed=[];document.getElementById('csv-op-preview-zone').style.display='none';document.getElementById('csv-op-preview').innerHTML='';document.getElementById('csv-op-file').value='';}
 function showCsvOpError(msg){const el=document.getElementById('csv-op-error');el.textContent='⚠️ '+msg;el.style.display='flex';}
 
+function toggleEditArticle(){
+  const isEdit=document.getElementById('btn-fiche-save').style.display!=='none';
+  if(isEdit){
+    // Annuler l'édition — recharger les infos
+    renderFicheArtInfo(currentArticle);
+    document.getElementById('btn-fiche-save').style.display='none';
+    document.getElementById('btn-fiche-edit').textContent='✏️ Modifier';
+    return;
+  }
+  // Passer en mode édition
+  document.getElementById('btn-fiche-save').style.display='';
+  document.getElementById('btn-fiche-edit').textContent='✕ Annuler';
+  const a=currentArticle;
+  const inp=(id,val,type='text',opts=null)=>{
+    if(opts){
+      return`<select id="edit-${id}" style="width:100%;background:var(--steel);border:1px solid var(--accent);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none">${opts.map(o=>`<option value="${o}" ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
+    }
+    return`<input type="${type}" id="edit-${id}" value="${val||''}" style="width:100%;background:var(--steel);border:1px solid var(--accent);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none">`;
+  };
+  document.getElementById('fiche-art-info').innerHTML=[
+    ['ref','Référence',`<code style="color:var(--cyan)">${a.ref}</code>`],
+  ].map(([,,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text-muted)">Référence</span><span>${v}</span></div>`).join('')+
+  `<div style="padding:5px 0;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Réf. fournisseur</div>${inp('refFour',a.refFour)}</div>
+   <div style="padding:5px 0;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Désignation</div>${inp('nom',a.nom)}</div>
+   <div style="padding:5px 0;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Catégorie</div>${inp('cat',a.cat,'text',['Tuyau','Embout','Raccord','Jupe','Accessoire','Flexible'])}</div>
+   <div style="padding:5px 0;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Seuil minimum</div>${inp('seuil',a.seuil,'number')}</div>
+   <div style="padding:5px 0"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Unité</div>${inp('unite',a.unite,'text',['pcs','m','ml','kg','g','l','boite'])}</div>`;
+}
+
+function renderFicheArtInfo(a){
+  document.getElementById('fiche-art-info').innerHTML=[
+    ['Référence',`<code style="color:var(--cyan)">${a.ref}</code>`],
+    ['Réf. fournisseur',a.refFour||'—'],
+    ['Désignation',`<strong>${a.nom}</strong>`],
+    ['Catégorie',a.cat],
+    ['Unité',a.unite],
+    ['Seuil mini',a.seuil+' '+a.unite],
+  ].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text-muted)">${k}</span><span>${v}</span></div>`).join('');
+}
+
+async function saveArticle(){
+  if(!currentArticle)return;
+  const getVal=id=>{const el=document.getElementById('edit-'+id);return el?el.value.trim():null;};
+  const nom=getVal('nom');
+  const cat=getVal('cat');
+  const seuil=parseFloat(getVal('seuil'))||0;
+  const unite=getVal('unite');
+  const refFour=getVal('refFour');
+  if(!nom)return toast('La désignation est obligatoire','error');
+  try{
+    // Mettre à jour tous les sites avec la même ref
+    const {error}=await sb.from('stock_composants').update({
+      designation:nom,
+      categorie:cat,
+      seuil_minimum:seuil,
+      unite:unite,
+      ref_fournisseur:refFour||null,
+      updated_at:new Date().toISOString()
+    }).eq('reference',currentArticle.ref);
+    if(error)throw error;
+    await logAction('STOCK_MODIFIE',`Article ${currentArticle.ref} modifié`);
+    toast('✅ Article mis à jour');
+    // Recharger
+    await loadStock();
+    const updated=stockData.find(s=>s.id===currentArticle.id)||currentArticle;
+    currentArticle={...currentArticle,nom,cat,seuil,unite,refFour};
+    renderFicheArtInfo(currentArticle);
+    document.getElementById('btn-fiche-save').style.display='none';
+    document.getElementById('btn-fiche-edit').textContent='✏️ Modifier';
+    renderStock();
+  }catch(e){toast('❌ Erreur : '+e.message,'error');}
+}
+
 // ── FICHE ARTICLE ──
 let currentArticle=null;
 
@@ -2502,16 +2589,11 @@ async function openFicheArticle(id){
   if(!art)return;
   currentArticle=art;
   document.getElementById('fiche-art-titre').textContent=`📄 Fiche Article — ${art.ref}`;
+  document.getElementById('btn-fiche-save').style.display='none';
+  document.getElementById('btn-fiche-edit').textContent='✏️ Modifier';
 
   // Infos générales
-  document.getElementById('fiche-art-info').innerHTML=[
-    ['Référence',`<code style="color:var(--cyan)">${art.ref}</code>`],
-    ['Réf. fournisseur',art.refFour||'—'],
-    ['Désignation',`<strong>${art.nom}</strong>`],
-    ['Catégorie',art.cat],
-    ['Unité',art.unite],
-    ['Seuil mini',art.seuil+' '+art.unite],
-  ].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text-muted)">${k}</span><span>${v}</span></div>`).join('');
+  renderFicheArtInfo(art);
 
   // Stock par site
   const memeRef=stockData.filter(s=>s.ref===art.ref);
@@ -2732,24 +2814,20 @@ function handleCsvFile(file){if(!file)return;const r=new FileReader();r.onload=e
 function parseCsv(text){
   const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
   if(lines.length<2)return showCsvError('Fichier vide.');
-  // Détecter le séparateur : si la 1ère ligne a plus de ';' que de ',', c'est ';'
   const firstLine=lines[0];
-  const sep=firstLine.split(';').length>firstLine.split(',').length?';':',';
-  if(sep===','){
-    showCsvError('⚠️ Ton fichier utilise des virgules comme séparateurs. Dans Excel : Enregistrer sous → CSV UTF-8 (délimité par des points-virgules)');
-    return;
+  // Détecter séparateur
+  let sep=(document.getElementById('csv-sep')||{value:'auto'}).value;
+  if(sep==='auto'){
+    const nbSemi=(firstLine.match(/;/g)||[]).length;
+    const nbComma=(firstLine.match(/,/g)||[]).length;
+    sep=nbSemi>=nbComma?';':',';
   }
-  const headers=lines[0].split(sep).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
-  // findCol cherche la première colonne correspondant à une des variantes
-  // Supporte aussi les noms partiels (ex: 'stock m' pour 'stock minimum')
+  const headers=firstLine.split(sep).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
   const findCol=(...variants)=>{
     for(const v of variants){
-      const exact=headers.indexOf(v);
-      if(exact>=0)return exact;
-      const partial=headers.findIndex(h=>h.startsWith(v)||h.includes(v));
-      if(partial>=0)return partial;
-    }
-    return -1;
+      const ex=headers.indexOf(v);if(ex>=0)return ex;
+      const pt=headers.findIndex(h=>h.startsWith(v)||h.includes(v));if(pt>=0)return pt;
+    }return -1;
   };
   const iRef=findCol('code','reference','ref','article');
   const iDes=findCol('designation','nom','libelle','description','name');
@@ -2758,33 +2836,47 @@ function parseCsv(text){
   const iSeuil=findCol('stock m','stock mini','stock min','seuil','mini','minimum','min','seuil_minimum');
   const iUnite=findCol('unite','unit','um');
   const iRefFour=findCol('reference fourni','ref fourni','ref_fournisseur','fournisseur','supplier');
-  if(iRef<0)return showCsvError('Colonne référence introuvable. Colonnes : '+headers.join(', '));
-  if(iDes<0)return showCsvError('Colonne désignation introuvable. Colonnes : '+headers.join(', '));
+  if(iRef<0)return showCsvError('Colonne référence introuvable. Colonnes détectées : '+headers.join(' | ')+'\nSéparateur utilisé : "'+sep+'"');
+  if(iDes<0)return showCsvError('Colonne désignation introuvable. Colonnes : '+headers.join(' | '));
+
+  const parseNum=(v)=>v?parseFloat(v.replace(/\s/g,'').replace(',','.'))||0:0;
+
   const rows=[];
   for(let i=1;i<lines.length;i++){
-    const c=lines[i].split(sep).map(x=>x.trim().replace(/^"|"$/g,''));
-    const ref=c[iRef]||'';const des=c[iDes]||'';
+    let cols=lines[i].split(sep).map(x=>x.trim().replace(/^"|"$/g,''));
+    // Si trop de colonnes (comma séparateur + décimales FR), fusion des colonnes numériques divisées
+    if(sep===','&&cols.length>headers.length){
+      const fixed=[];let j=0;
+      while(j<cols.length){
+        if(j+1<cols.length&&/^\d+$/.test(cols[j])&&/^\d{1,2}$/.test(cols[j+1])&&fixed.length===iStk){
+          fixed.push(cols[j]+'.'+cols[j+1]);j+=2;
+        }else{fixed.push(cols[j]);j++;}
+      }
+      if(fixed.length===headers.length)cols=fixed;
+    }
+    const ref=cols[iRef]||'';const des=cols[iDes]||'';
     if(!ref||!des)continue;
     rows.push({
       reference:ref,designation:des,
-      categorie:iCat>=0&&c[iCat]?c[iCat]:'Accessoire',
-      stock_actuel:iStk>=0&&c[iStk]!==''?parseFloat(c[iStk].replace(/\s/g,'').replace(',','.'))||0:0,
-      seuil_minimum:iSeuil>=0&&c[iSeuil]!==''?parseFloat(c[iSeuil].replace(/\s/g,'').replace(',','.'))||0:0,
-      unite:iUnite>=0&&c[iUnite]?c[iUnite]:'pcs',
-      ref_fournisseur:iRefFour>=0&&c[iRefFour]?c[iRefFour]:null,
+      categorie:iCat>=0&&cols[iCat]?cols[iCat]:'Accessoire',
+      stock_actuel:iStk>=0?parseNum(cols[iStk]):0,
+      seuil_minimum:iSeuil>=0?parseNum(cols[iSeuil]):0,
+      unite:iUnite>=0&&cols[iUnite]?cols[iUnite]:'pcs',
+      ref_fournisseur:iRefFour>=0&&cols[iRefFour]?cols[iRefFour]:null,
     });
   }
-  if(!rows.length)return showCsvError('Aucune ligne valide.');
+  if(!rows.length)return showCsvError('Aucune ligne valide. Séparateur utilisé : "'+sep+'". Essaie l\'autre option.');
   csvParsed=rows;
-  const cols=[];
-  if(iStk>=0)cols.push('✅ Stock → "'+headers[iStk]+'"');
-  else cols.push('⚠️ Stock non trouvé (sera 0)');
-  if(iCat>=0)cols.push('✅ Cat. → "'+headers[iCat]+'"');
-  if(iSeuil>=0)cols.push('✅ Seuil → "'+headers[iSeuil]+'"');
-  document.getElementById('csv-count-lbl').innerHTML='<div style="color:var(--success);font-weight:700">✅ '+rows.length+' article(s) prêts</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px">'+cols.join(' | ')+'</div>';
+  const cols2=[];
+  if(iStk>=0)cols2.push('✅ Stock → "'+headers[iStk]+'"');else cols2.push('⚠️ Stock non trouvé');
+  if(iSeuil>=0)cols2.push('✅ Seuil → "'+headers[iSeuil]+'"');
+  if(iCat>=0)cols2.push('✅ Cat → "'+headers[iCat]+'"');
+  cols2.push('Séparateur : "'+sep+'"');
+  document.getElementById('csv-count-lbl').innerHTML='<div style="color:var(--success);font-weight:700">✅ '+rows.length+' article(s) prêts</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px">'+cols2.join(' | ')+'</div>';
   document.getElementById('csv-preview').innerHTML=`<div class="table-card" style="margin:0"><table><thead><tr><th>Réf</th><th>Désignation</th><th>Cat.</th><th>Stock</th><th>Seuil</th><th>Unité</th></tr></thead><tbody>${rows.slice(0,8).map(r=>`<tr><td><code>${r.reference}</code></td><td>${r.designation}</td><td>${r.categorie}</td><td><strong style="color:var(--accent)">${r.stock_actuel}</strong></td><td>${r.seuil_minimum}</td><td>${r.unite}</td></tr>`).join('')}${rows.length>8?`<tr class="empty"><td colspan="6">... et ${rows.length-8} autres</td></tr>`:''}</tbody></table></div>`;
   document.getElementById('csv-preview-zone').style.display='block';
 }
+
 async function importCsv(){
   try{
     const sites=['zone3','yopougon','sanpedro'];
