@@ -2733,19 +2733,39 @@ function parseCsv(text){
   const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
   if(lines.length<2)return showCsvError('Fichier vide.');
   const headers=lines[0].split(/[,;]/).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
-  if(!headers.includes('reference')||!headers.includes('designation'))return showCsvError('Colonnes "reference" et "designation" requises.');
+  const findCol=(...variants)=>{for(const v of variants){const i=headers.indexOf(v);if(i>=0)return i;}return -1;};
+  const iRef=findCol('reference','ref','code','article');
+  const iDes=findCol('designation','nom','libelle','description','name','article');
+  const iCat=findCol('categorie','category','cat','type','famille');
+  const iStk=findCol('stock_actuel','stock','quantite','qte','qty','quantity');
+  const iSeuil=findCol('seuil_minimum','seuil','mini','minimum','min');
+  const iUnite=findCol('unite','unit','um');
+  const iRefFour=findCol('ref_fournisseur','ref_four','fournisseur','supplier_ref');
+  if(iRef<0)return showCsvError('Colonne référence introuvable. Colonnes : '+headers.join(', '));
+  if(iDes<0)return showCsvError('Colonne désignation introuvable. Colonnes : '+headers.join(', '));
   const rows=[];
   for(let i=1;i<lines.length;i++){
     const c=lines[i].split(/[,;]/).map(x=>x.trim().replace(/^"|"$/g,''));
-    const r={reference:c[headers.indexOf('reference')]||'',designation:c[headers.indexOf('designation')]||''};
-    if(!r.reference||!r.designation)continue;
-    ['ref_fournisseur','categorie','stock_actuel','seuil_minimum','unite'].forEach(k=>{const idx=headers.indexOf(k);if(idx>=0)r[k]=c[idx]||null;});
-    rows.push(r);
+    const ref=c[iRef]||'';const des=c[iDes]||'';
+    if(!ref||!des)continue;
+    rows.push({
+      reference:ref,designation:des,
+      categorie:iCat>=0&&c[iCat]?c[iCat]:'Accessoire',
+      stock_actuel:iStk>=0&&c[iStk]!==''?parseFloat(c[iStk].replace(',','.'))||0:0,
+      seuil_minimum:iSeuil>=0&&c[iSeuil]!==''?parseFloat(c[iSeuil].replace(',','.'))||0:0,
+      unite:iUnite>=0&&c[iUnite]?c[iUnite]:'pcs',
+      ref_fournisseur:iRefFour>=0&&c[iRefFour]?c[iRefFour]:null,
+    });
   }
   if(!rows.length)return showCsvError('Aucune ligne valide.');
   csvParsed=rows;
-  document.getElementById('csv-count-lbl').innerHTML=`<span style="color:var(--success)">✅ ${rows.length} article(s) prêts</span>`;
-  document.getElementById('csv-preview').innerHTML=`<div class="table-card" style="margin:0"><table><thead><tr><th>Réf</th><th>Désignation</th><th>Cat.</th><th>Stock</th></tr></thead><tbody>${rows.slice(0,8).map(r=>`<tr><td><code>${r.reference}</code></td><td>${r.designation}</td><td>${r.categorie||'—'}</td><td>${r.stock_actuel||0}</td></tr>`).join('')}${rows.length>8?`<tr class="empty"><td colspan="4">... et ${rows.length-8} autres</td></tr>`:''}</tbody></table></div>`;
+  const cols=[];
+  if(iStk>=0)cols.push('✅ Stock → "'+headers[iStk]+'"');
+  else cols.push('⚠️ Stock non trouvé (sera 0)');
+  if(iCat>=0)cols.push('✅ Cat. → "'+headers[iCat]+'"');
+  if(iSeuil>=0)cols.push('✅ Seuil → "'+headers[iSeuil]+'"');
+  document.getElementById('csv-count-lbl').innerHTML='<div style="color:var(--success);font-weight:700">✅ '+rows.length+' article(s) prêts</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px">'+cols.join(' | ')+'</div>';
+  document.getElementById('csv-preview').innerHTML=`<div class="table-card" style="margin:0"><table><thead><tr><th>Réf</th><th>Désignation</th><th>Cat.</th><th>Stock</th><th>Seuil</th><th>Unité</th></tr></thead><tbody>${rows.slice(0,8).map(r=>`<tr><td><code>${r.reference}</code></td><td>${r.designation}</td><td>${r.categorie}</td><td><strong style="color:var(--accent)">${r.stock_actuel}</strong></td><td>${r.seuil_minimum}</td><td>${r.unite}</td></tr>`).join('')}${rows.length>8?`<tr class="empty"><td colspan="6">... et ${rows.length-8} autres</td></tr>`:''}</tbody></table></div>`;
   document.getElementById('csv-preview-zone').style.display='block';
 }
 async function importCsv(){
