@@ -747,7 +747,7 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
 
                   <!-- MARQUAGE -->
                   <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">🏷️ Marquage</div>
-                  <div style="display:flex;gap:12px;margin-bottom:14px">
+                  <div style="display:flex;gap:12px;margin-bottom:8px">
                     <label onclick="setMarquage('OUI')" id="marq-oui" style="display:flex;align-items:center;gap:8px;padding:10px 20px;border:2px solid var(--border);border-radius:8px;cursor:pointer;flex:1;justify-content:center;transition:all .2s">
                       <div style="width:18px;height:18px;border:2px solid var(--text-muted);border-radius:3px;display:flex;align-items:center;justify-content:center" id="marq-box-oui"></div>
                       <span style="font-size:14px;font-weight:700">OUI</span>
@@ -756,6 +756,11 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
                       <div style="width:18px;height:18px;border:2px solid var(--accent);border-radius:3px;display:flex;align-items:center;justify-content:center;background:var(--accent)" id="marq-box-non">✕</div>
                       <span style="font-size:14px;font-weight:700;color:var(--accent)">NON</span>
                     </label>
+                  </div>
+                  <!-- Champ texte marquage — visible seulement si OUI -->
+                  <div id="marq-texte-zone" style="display:none;margin-bottom:14px">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Libellé du marquage</div>
+                    <input type="text" id="new-marquage-texte" placeholder="ex: TRCI-2026, Logo client, N° série..." style="width:100%;background:var(--steel);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none">
                   </div>
 
                   <!-- PRODUCTION -->
@@ -1014,7 +1019,16 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
               <div id="csv-preview-zone" style="display:none;margin-top:16px">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
                   <div id="csv-count-lbl"></div>
-                  <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="resetCsv()">✖ Annuler</button><button class="btn btn-success btn-sm" onclick="importCsv()">✅ Importer</button></div>
+                  <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="resetCsv()">✖ Annuler</button><button class="btn btn-success btn-sm" onclick="importCsv()">✅ Importer la sélection</button></div>
+                </div>
+                <!-- FILTRE PAR CATÉGORIE -->
+                <div style="margin-bottom:10px;padding:10px 14px;background:var(--steel);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                  <span style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">📂 Filtrer :</span>
+                  <select id="csv-filtre-cat" onchange="updateCsvPreview()" style="background:var(--steel-light);border:1px solid var(--border);border-radius:6px;padding:5px 12px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none">
+                    <option value="">Toutes les catégories</option>
+                  </select>
+                  <span id="csv-cat-count" style="font-size:12px;color:var(--accent);font-weight:700"></span>
+                  <span style="font-size:11px;color:var(--text-muted)">→ Seule la catégorie sélectionnée sera importée</span>
                 </div>
                 <div id="csv-preview"></div>
               </div>
@@ -1648,7 +1662,7 @@ function mapOrdre(o){
     typeVerification:o.type_verification||'aucune',
     pressionRupture:o.pression_rupture,pressionEssai:o.pression_essai,conformite:o.conformite,
     application:o.application,fluide:o.fluide,reprise:o.reprise||'Neuf',
-    marquage:o.marquage||'NON',numProforma:o.num_proforma,
+    marquage:o.marquage||'NON',marquageTexte:o.marquage_texte||null,numProforma:o.num_proforma,
     clientNcc:(()=>{const c=clients.find(x=>x.nom===o.client);return c?.ncc||null;})(),
     validationStatut:o.validation_statut||'a_valider',
     validationPar:o.validation_par,validationMotif:o.validation_motif,
@@ -2122,7 +2136,7 @@ function imprimerFiche(){
   <div class="stitle">Marquage</div>
   <div class="marq-block">
     <div class="marq-row">
-      <div class="chk-item">${chk(o.marquage==='OUI')} OUI</div>
+      <div class="chk-item">${chk(o.marquage==='OUI')} OUI ${o.marquage==='OUI'&&o.marquageTexte?'<span style="font-size:12px;color:#555;margin-left:8px">→ '+o.marquageTexte+'</span>':''}</div>
       <div class="chk-item">${chk(o.marquage==='NON')} NON</div>
     </div>
   </div>
@@ -2221,6 +2235,7 @@ async function prepNouvel(){
   const opBox=document.getElementById('op-info-box');if(opBox)opBox.style.display='none';
   currentVerif='aucune';currentConformite='';currentMarquage='NON';
   onSelectVerif('aucune');setMarquage('NON');
+  const mEl=document.getElementById('new-marquage-texte');if(mEl)mEl.value='';
   ['new-temp-ot','new-num-proforma','new-prix-unit','new-remise'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const appEl=document.getElementById('new-application');if(appEl)appEl.value='';
   const fluEl=document.getElementById('new-fluide');if(fluEl)fluEl.value='';
@@ -2312,6 +2327,7 @@ async function creerOrdre(){
     fluide:document.getElementById('new-fluide')?.value||null,
     reprise:document.getElementById('new-reprise')?.value||'Neuf',
     marquage:currentMarquage||'NON',
+    marquage_texte:currentMarquage==='OUI'?document.getElementById('new-marquage-texte')?.value||null:null,
     num_proforma:document.getElementById('new-num-proforma')?.value||null,
     type_verification:currentVerif||'aucune',
     pression_rupture:document.getElementById('verif-pression-rupture')?.value?parseFloat(document.getElementById('verif-pression-rupture').value):null,
@@ -2893,7 +2909,15 @@ function parseCsv(text){
   }
   if(!rows.length)return showCsvError('Aucune ligne valide. Séparateur utilisé : "'+sep+'". Essaie l\'autre option.');
   csvParsed=rows;
-  const cols2=[];
+  // Peupler le filtre catégories
+  const cats=[...new Set(rows.map(r=>r.categorie).filter(Boolean))].sort();
+  const filtSel=document.getElementById('csv-filtre-cat');
+  if(filtSel){
+    filtSel.innerHTML='<option value="">Toutes les catégories ('+rows.length+')</option>'+
+      cats.map(c=>`<option value="${c}">${c} (${rows.filter(r=>r.categorie===c).length})</option>`).join('');
+  }
+  document.getElementById('csv-preview-zone').style.display='block';
+  updateCsvPreview();
   if(iStk>=0)cols2.push('✅ Stock → "'+headers[iStk]+'"');else cols2.push('⚠️ Stock non trouvé');
   if(iSeuil>=0)cols2.push('✅ Seuil → "'+headers[iSeuil]+'"');
   if(iCat>=0)cols2.push('✅ Cat → "'+headers[iCat]+'"');
@@ -2903,16 +2927,30 @@ function parseCsv(text){
   document.getElementById('csv-preview-zone').style.display='block';
 }
 
+function updateCsvPreview(){
+  const cat=(document.getElementById('csv-filtre-cat')||{value:''}).value;
+  const list=cat?csvParsed.filter(r=>r.categorie===cat):csvParsed;
+  const total=csvParsed.length;
+  document.getElementById('csv-count-lbl').innerHTML=
+    '<div style="color:var(--success);font-weight:700">✅ '+list.length+' article(s) '+(cat?'— catégorie <strong>'+cat+'</strong>':'— toutes catégories')+'</div>'+
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Total fichier : '+total+' articles</div>';
+  const countEl=document.getElementById('csv-cat-count');
+  if(countEl)countEl.textContent=cat?list.length+' article(s)':'';
+  document.getElementById('csv-preview').innerHTML=
+    `<div class="table-card" style="margin:0"><table><thead><tr><th>Réf</th><th>Désignation</th><th>Cat.</th><th>Stock</th><th>Seuil</th><th>Unité</th></tr></thead><tbody>
+    ${list.slice(0,10).map(r=>`<tr><td><code>${r.reference}</code></td><td>${r.designation}</td><td>${r.categorie}</td><td><strong style="color:var(--accent)">${r.stock_actuel}</strong></td><td>${r.seuil_minimum}</td><td>${r.unite}</td></tr>`).join('')}
+    ${list.length>10?`<tr class="empty"><td colspan="6">... et ${list.length-10} autres</td></tr>`:''}</tbody></table></div>`;
+}
+
 async function importCsv(){
+  const cat=(document.getElementById('csv-filtre-cat')||{value:''}).value;
+  const list=cat?csvParsed.filter(r=>r.categorie===cat):csvParsed;
+  if(!list.length)return toast('Aucun article à importer','error');
   try{
     const sites=['zone3','yopougon','sanpedro'];
-    // Dédupliquer par référence (garder le dernier)
-    const dedupMap={};
-    csvParsed.forEach(r=>{dedupMap[r.reference]=r;});
+    const dedupMap={};list.forEach(r=>{dedupMap[r.reference]=r;});
     const dedup=Object.values(dedupMap);
-    if(dedup.length<csvParsed.length){
-      toast(`⚠️ ${csvParsed.length-dedup.length} doublon(s) ignoré(s)`);}
-    // Construire les lignes par site
+    if(dedup.length<list.length)toast(`⚠️ ${list.length-dedup.length} doublon(s) ignoré(s)`);
     const rows=[];
     dedup.forEach(r=>{sites.forEach(site=>{rows.push({
       reference:r.reference,ref_fournisseur:r.ref_fournisseur||null,
@@ -2921,18 +2959,19 @@ async function importCsv(){
       seuil_minimum:parseFloat(r.seuil_minimum)||0,
       unite:r.unite||'pcs',site_id:site
     });});});
-    // Import par lots de 50
-    showLoader(`Import de ${dedup.length} articles...`);
+    showLoader(`Import ${cat?cat:'complet'} — ${dedup.length} articles...`);
     let ok=0;
     for(let i=0;i<rows.length;i+=50){
       const lot=rows.slice(i,i+50);
       const {error}=await sb.from('stock_composants').upsert(lot,{onConflict:'reference,site_id'});
-      if(error) throw error;
+      if(error)throw error;
       ok+=lot.length/sites.length;
     }
     hideLoader();
-    toast(`✅ ${Math.round(ok)} article(s) importés !`);
-    resetCsv();await loadStock();renderStock();
+    toast(`✅ ${Math.round(ok)} article(s) importés${cat?' — '+cat:''}  !`);
+    // Si filtre actif : laisser le fichier ouvert pour importer d'autres catégories
+    if(!cat)resetCsv();
+    await loadStock();renderStock();
   }catch(e){hideLoader();toast('❌ Erreur import : '+e.message,'error');}
 }
 function resetCsv(){csvParsed=[];document.getElementById('csv-preview-zone').style.display='none';document.getElementById('csv-preview').innerHTML='';document.getElementById('csv-file').value='';}
@@ -3683,16 +3722,21 @@ function setMarquage(val){
   const non=document.getElementById('marq-non');
   const boxOui=document.getElementById('marq-box-oui');
   const boxNon=document.getElementById('marq-box-non');
+  const zone=document.getElementById('marq-texte-zone');
   if(val==='OUI'){
     if(oui){oui.style.border='2px solid var(--success)';oui.style.background='rgba(46,204,113,0.05)';}
     if(non){non.style.border='2px solid var(--border)';non.style.background='transparent';}
     if(boxOui){boxOui.style.background='var(--success)';boxOui.style.border='2px solid var(--success)';boxOui.textContent='✕';}
     if(boxNon){boxNon.style.background='transparent';boxNon.style.border='2px solid var(--text-muted)';boxNon.textContent='';}
+    if(zone)zone.style.display='block';
+    setTimeout(()=>{const el=document.getElementById('new-marquage-texte');if(el)el.focus();},100);
   }else{
     if(non){non.style.border='2px solid var(--accent)';non.style.background='rgba(245,166,35,0.05)';}
     if(oui){oui.style.border='2px solid var(--border)';oui.style.background='transparent';}
     if(boxNon){boxNon.style.background='var(--accent)';boxNon.style.border='2px solid var(--accent)';boxNon.textContent='✕';}
     if(boxOui){boxOui.style.background='transparent';boxOui.style.border='2px solid var(--text-muted)';boxOui.textContent='';}
+    if(zone)zone.style.display='none';
+    const el=document.getElementById('new-marquage-texte');if(el)el.value='';
   }
 }
 
