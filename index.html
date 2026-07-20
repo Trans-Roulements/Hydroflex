@@ -2233,7 +2233,14 @@ function onSelectClient(){
   const sel=document.getElementById('new-client-select');
   const c=clients.find(x=>x.id===sel.value);
   const box=document.getElementById('client-info-box');
-  if(!c){box.style.display='none';return;}
+  if(!c){
+    box.style.display='none';
+    // Vider tous les champs client
+    ['cli-adresse','cli-ville','cli-tel','cli-contact','cli-email','cli-cp','cli-ncc'].forEach(id=>{
+      const el=document.getElementById(id);if(el)el.value='';
+    });
+    return;
+  }
   document.getElementById('client-info-nom').textContent=c.nom+(c.ncc?' — NCC: '+c.ncc:'');
   document.getElementById('client-info-details').textContent=[c.contact,c.tel,c.email,c.ville].filter(Boolean).join(' · ');
   box.style.display='block';
@@ -2244,6 +2251,7 @@ function onSelectClient(){
   if(el('cli-contact'))el('cli-contact').value=c.contact||'';
   if(el('cli-email'))el('cli-email').value=c.email||'';
   if(el('cli-cp'))el('cli-cp').value=c.cp||'';
+  if(el('cli-ncc'))el('cli-ncc').value=c.ncc||'';
 }
 
 function onSelectStock(field){
