@@ -2333,9 +2333,10 @@ async function modifierOrdre(){
   if(!currentOrdre)return;
   const o=currentOrdre;
   if(o.statut==='termine'){toast('❌ Impossible de modifier un ordre terminé','error');return;}
-  currentEditId=o.id;
+  const editId=o.id; // Sauvegarder l'ID avant prepNouvel
   closeModal('modal-ordre');
-  await prepNouvel();
+  await prepNouvel(); // prepNouvel remet currentEditId=null
+  currentEditId=editId; // On le remet APRÈS
   const set=(id,val)=>{const el=document.getElementById(id);if(el&&val!==undefined&&val!==null)el.value=val;};
   document.getElementById('new-ref').value=o.ref;
   if(document.getElementById('new-ref-display'))document.getElementById('new-ref-display').textContent='✏️ '+o.ref;
