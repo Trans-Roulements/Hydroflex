@@ -2017,174 +2017,201 @@ async function saveBL(){
 function imprimerFiche(){
   if(!currentOrdre)return;
   if(currentOrdre.validationStatut!=='valide'){
-    toast('Impossible d\'imprimer — ordre non validé par l\'admin','error');return;
+    toast('❌ Impossible d\'imprimer — ordre non validé','error');return;
   }
   const o=currentOrdre;
   const site=SITES[o.site]||{name:o.site,color:'#f5a623'};
-  const chk=(ok)=>ok
-    ?'<span style="display:inline-block;width:16px;height:16px;border:2px solid #000;background:#000;margin-right:8px;vertical-align:middle"></span>'
-    :'<span style="display:inline-block;width:16px;height:16px;border:2px solid #000;margin-right:8px;vertical-align:middle"></span>';
+  const chk=ok=>ok
+    ?'<span style="display:inline-block;width:14px;height:14px;border:2px solid #000;background:#000;vertical-align:middle;margin-right:6px;flex-shrink:0"></span>'
+    :'<span style="display:inline-block;width:14px;height:14px;border:2px solid #000;vertical-align:middle;margin-right:6px;flex-shrink:0"></span>';
+  const showL=v=>v?(v>=10?(v/1000).toFixed(2):parseFloat(v).toFixed(2))+' m':'—';
   const w=window.open('','_blank','width=794,height=1123');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>OT ${o.ref}</title>
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>OF ${o.ref}</title>
   <style>
-    @page{size:A4 portrait;margin:15mm 15mm 15mm 20mm;}
     *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:Arial,sans-serif;color:#111;font-size:11px;width:175mm;display:block;}
+    html,body{width:210mm;height:297mm;}
+    body{font-family:Arial,sans-serif;color:#000;
+      padding:12mm 12mm 10mm 22mm;
+      display:flex;flex-direction:column;gap:0;}
 
-    .hdr{width:100%;border-collapse:collapse;border:2px solid #000;}
-    .hdr td{padding:0;vertical-align:middle;}
-    .hdr-num{padding:8px 12px;width:180px;border-right:2px solid #000;font-size:11px;line-height:1.6;}
-    .hdr-title{text-align:center;font-size:26px;font-weight:900;letter-spacing:3px;padding:10px;}
-    .hdr-site{width:110px;border-left:2px solid #000;text-align:center;padding:8px;}
-    .site-tag{display:inline-block;background:${site.color};color:white;padding:5px 12px;border-radius:3px;font-weight:800;font-size:12px;}
-    .client-bar{border:2px solid #000;border-top:none;padding:10px 12px;font-size:17px;font-weight:900;margin-bottom:10px;display:block;}
+    /* EN-TÊTE */
+    .hdr{display:grid;grid-template-columns:auto 1fr auto;border:2px solid #000;margin-bottom:0;}
+    .hdr-left{padding:8px 12px;border-right:2px solid #000;}
+    .hdr-left .row{font-size:12px;line-height:1.8;}
+    .hdr-left .row span{font-weight:800;}
+    .hdr-center{display:flex;align-items:center;justify-content:center;padding:6px;}
+    .hdr-title{font-size:24px;font-weight:900;letter-spacing:3px;text-align:center;line-height:1.2;}
+    .hdr-right{border-left:2px solid #000;padding:8px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:90px;}
+    .site-badge{background:${site.color};color:white;padding:3px 10px;border-radius:3px;font-weight:800;font-size:12px;text-align:center;}
+    .client-bar{border:2px solid #000;border-top:none;padding:8px 12px;font-size:17px;font-weight:900;margin-bottom:0;}
 
-    .stitle{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;
-      border-bottom:2px solid #000;padding-bottom:5px;margin:12px 0 8px 0;display:block;clear:both;}
-    .sub{font-size:10px;font-weight:700;text-transform:uppercase;color:#555;margin:6px 0 4px 0;display:block;}
+    /* SECTION */
+    .section{flex-shrink:0;}
+    .section-title{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;
+      border-bottom:2px solid #000;padding:7px 0 5px 0;margin-bottom:0;}
+    .sub-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+      color:#444;padding:5px 0 3px 0;}
 
-    .tbl{width:100%;border-collapse:collapse;margin-bottom:6px;}
-    .tbl th{background:#eee;font-size:10px;font-weight:700;text-transform:uppercase;
-      padding:6px 8px;border:1px solid #000;text-align:center;}
-    .tbl td{border:1px solid #000;text-align:center;vertical-align:middle;}
-    .tbl td.ref{font-size:13px;font-weight:700;padding:9px 6px;}
-    .tbl td.qty{font-size:20px;font-weight:900;padding:8px;}
-    .tbl td.flex{border-left:2.5px solid #000;border-right:2.5px solid #000;background:#f9f9f9;}
-    .tbl td.sep-left{border-left:2.5px solid #000;}
+    /* TABLEAUX */
+    table{width:100%;border-collapse:collapse;}
+    th{background:#f0f0f0;font-size:10px;font-weight:700;text-transform:uppercase;
+      padding:6px 8px;border:1px solid #000;text-align:center;letter-spacing:.3px;}
+    td{border:1px solid #000;text-align:center;vertical-align:middle;}
+    .cell-ref{font-size:13px;font-weight:700;padding:9px 6px;}
+    .cell-qty{font-size:20px;font-weight:900;padding:8px;}
+    .cell-flex{border-left:2.5px solid #000!important;border-right:2.5px solid #000!important;background:#fafafa;}
 
-    .marq-block{padding:10px 0 8px 0;display:block;}
-    .marq-row{display:flex;gap:50px;align-items:center;}
+    /* MARQUAGE */
+    .marq-row{display:flex;gap:40px;padding:10px 4px;align-items:center;}
     .chk-item{display:flex;align-items:center;font-size:13px;font-weight:700;}
 
-    .verif-block{display:block;padding:4px 0;}
-    .vrow{display:flex;align-items:center;gap:14px;padding:8px 0;border-bottom:1px dotted #ddd;}
-    .vrow:last-child{border-bottom:none;}
-    .vlbl{display:flex;align-items:center;min-width:250px;font-size:13px;font-weight:700;}
-    .vfields{display:flex;gap:24px;flex:1;}
-    .vf{font-size:10px;font-weight:700;text-transform:uppercase;display:flex;align-items:center;gap:6px;}
-    .vline{border-bottom:1.5px solid #000;min-width:120px;height:18px;padding:0 4px;
-      font-size:11px;font-weight:700;display:inline-flex;align-items:flex-end;}
+    /* VÉRIFICATION */
+    .verif-items{display:flex;flex-direction:column;gap:10px;padding:8px 0;}
+    .verif-row{display:flex;align-items:center;gap:12px;}
+    .verif-label{display:flex;align-items:center;min-width:240px;font-size:13px;font-weight:700;}
+    .verif-fields{display:flex;gap:20px;flex:1;}
+    .verif-field{font-size:10px;font-weight:700;text-transform:uppercase;display:flex;align-items:center;gap:6px;}
+    .vline{border-bottom:1.5px solid #000;min-width:110px;height:18px;display:inline-block;}
 
-    .fact{width:100%;border-collapse:collapse;border:1px solid #000;}
-    .fact td{border:1px solid #000;padding:10px 12px;vertical-align:top;}
-    .fact .lbl{font-size:8px;font-weight:700;text-transform:uppercase;color:#777;
-      display:block;margin-bottom:5px;letter-spacing:.5px;}
-    .fact .val{font-size:15px;font-weight:800;}
-    .fact .bl-row{font-size:11px;border-bottom:1px solid #eee;padding:4px 0;display:flex;align-items:center;gap:8px;}
+    /* FACTURATION */
+    .fact-top{display:grid;grid-template-columns:1fr 1fr 1.5fr;border:1px solid #000;}
+    .fact-cell{padding:10px 12px;border-right:1px solid #000;}
+    .fact-cell:last-child{border-right:none;}
+    .fact-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#666;margin-bottom:5px;}
+    .fact-val{font-size:15px;font-weight:800;}
+    .fact-bl{display:flex;flex-direction:column;gap:4px;}
+    .fact-bl-row{font-size:11px;display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid #eee;}
+    .fact-bl-row:last-child{border-bottom:none;}
 
-    .foot{width:100%;border-collapse:collapse;border:1px solid #000;border-top:none;}
-    .foot td{border:1px solid #000;padding:12px 8px;min-height:60px;width:20%;vertical-align:top;}
-    .foot .lbl{font-size:8px;font-weight:700;text-transform:uppercase;color:#777;
-      display:block;border-bottom:1px solid #eee;margin-bottom:6px;padding-bottom:3px;letter-spacing:.5px;}
-    .foot .val{font-size:12px;font-weight:700;}
-    .pfooter{margin-top:10px;font-size:8px;color:#bbb;text-align:right;border-top:1px solid #eee;padding-top:5px;display:block;}
-    @media print{button{display:none!important;}}
+    .fact-bottom{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid #000;border-top:none;}
+    .foot-cell{padding:10px 8px;border-right:1px solid #000;min-height:58px;}
+    .foot-cell:last-child{border-right:none;}
+    .foot-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#666;border-bottom:1px solid #eee;margin-bottom:5px;padding-bottom:3px;}
+    .foot-val{font-size:12px;font-weight:700;}
+
+    .pied{margin-top:auto;padding-top:6px;font-size:8px;color:#bbb;text-align:right;border-top:1px solid #eee;}
+    @media print{body{padding:12mm 12mm 10mm 22mm;}button{display:none!important;}}
   </style></head><body>
 
-  <table class="hdr"><tr>
-    <td class="hdr-num">
-      N° &nbsp;<strong>${o.ref}</strong><br>
-      Client : &nbsp;<strong>${o.client||'—'}</strong>
-      ${o.clientNcc?'<br>NCC : &nbsp;<strong>'+o.clientNcc+'</strong>':''}
-    </td>
-    <td class="hdr-title">ORDRE DE FABRICATION</td>
-    <td class="hdr-site">
-      <div class="site-tag">${site.name}</div>
-      <div style="font-size:9px;color:#666;margin-top:6px">${new Date(o.createdAt).toLocaleDateString('fr-FR')}</div>
-    </td>
-  </tr></table>
+  <!-- EN-TÊTE -->
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="row">N° <span>${o.ref}</span></div>
+      <div class="row">Client : <span>${o.client||'—'}</span></div>
+      ${o.clientNcc?`<div class="row">NCC : <span>${o.clientNcc}</span></div>`:''}
+    </div>
+    <div class="hdr-center">
+      <div class="hdr-title">ORDRE DE<br>FABRICATION</div>
+    </div>
+    <div class="hdr-right">
+      <div class="site-badge">${site.name}</div>
+      <div style="font-size:9px;color:#555;margin-top:3px">${new Date(o.createdAt).toLocaleDateString('fr-FR')}</div>
+    </div>
+  </div>
   <div class="client-bar">${o.client||'—'}</div>
 
-  <div class="stitle">Identification des travaux</div>
+  <!-- IDENTIFICATION DES TRAVAUX -->
+  <div class="section" style="margin-top:10px">
+    <div class="section-title">Identification des travaux</div>
+    <div class="sub-title">Notification client</div>
+    <table>
+      <tr>
+        <th>Température</th><th>Application</th><th>Fluide</th><th>Pression</th>
+        <th style="border-left:2.5px solid #000">Reprise / Embout / Tuyau</th>
+      </tr>
+      <tr>
+        <td class="cell-ref">${o.temp||'—'}</td>
+        <td class="cell-ref">${o.application||'—'}</td>
+        <td class="cell-ref">${o.fluide||'—'}</td>
+        <td class="cell-ref">${o.pression?o.pression+' BARS':'—'}</td>
+        <td class="cell-ref" style="border-left:2.5px solid #000">${o.reprise||'Neuf'}</td>
+      </tr>
+    </table>
+    <div class="sub-title" style="margin-top:8px">Application</div>
+    <table>
+      <tr>
+        <th>Embout</th><th>Jupe</th><th class="cell-flex">Flexible</th><th>Jupe</th><th>Embout</th>
+      </tr>
+      <tr>
+        <td class="cell-ref">${o.emboutA||'—'}</td>
+        <td class="cell-ref">${o.jupeA||'—'}</td>
+        <td class="cell-ref cell-flex">${o.refFlex?o.refFlex+(o.dn?' ('+o.dn+')':''):o.dn||'—'}</td>
+        <td class="cell-ref">${o.jupeB||'—'}</td>
+        <td class="cell-ref">${o.emboutB||'—'}</td>
+      </tr>
+      <tr>
+        <td class="cell-qty">${o.emboutA&&o.emboutA!=='—'?o.qty||1:'—'}</td>
+        <td class="cell-qty">${o.jupeA&&o.jupeA!=='—'?o.qty||1:'—'}</td>
+        <td class="cell-qty cell-flex">${o.refFlex||o.longueur?showL(o.longueur):'—'}</td>
+        <td class="cell-qty">${o.jupeB&&o.jupeB!=='—'?o.qty||1:'—'}</td>
+        <td class="cell-qty">${o.emboutB&&o.emboutB!=='—'?o.qty||1:'—'}</td>
+      </tr>
+    </table>
+  </div>
 
-  <div class="sub">Notification client</div>
-  <table class="tbl">
-    <tr>
-      <th>Température</th><th>Application</th><th>Fluide</th><th>Pression</th>
-      <th class="sep-left">Reprise / Embout / Tuyau</th>
-    </tr>
-    <tr>
-      <td class="ref">${o.temp||'—'}</td>
-      <td class="ref">${o.application||'—'}</td>
-      <td class="ref">${o.fluide||'—'}</td>
-      <td class="ref">${o.pression?o.pression+' BARS':'—'}</td>
-      <td class="ref sep-left">${o.reprise||'Neuf'}</td>
-    </tr>
-  </table>
-
-  <div class="sub" style="margin-top:10px">Application</div>
-  <table class="tbl">
-    <tr>
-      <th>Embout</th><th>Jupe</th><th class="flex">Flexible</th><th>Jupe</th><th>Embout</th>
-    </tr>
-    <tr>
-      <td class="ref">${o.emboutA||'—'}</td>
-      <td class="ref">${o.jupeA||'—'}</td>
-      <td class="ref flex">${o.refFlex?o.refFlex+(o.dn?' ('+o.dn+')':''):o.dn?o.dn:'—'}</td>
-      <td class="ref">${o.jupeB||'—'}</td>
-      <td class="ref">${o.emboutB||'—'}</td>
-    </tr>
-    <tr>
-      <td class="qty">${o.emboutA&&o.emboutA!=='—'?o.qty||1:'—'}</td>
-      <td class="qty">${o.jupeA&&o.jupeA!=='—'?o.qty||1:'—'}</td>
-      <td class="qty flex">${o.refFlex||o.longueur?(o.longueur?(o.longueur>=10?(o.longueur>=10?(o.longueur/1000).toFixed(2):parseFloat(o.longueur).toFixed(2))+' m':parseFloat(o.longueur).toFixed(2)+' m'):'—'):'—'}</td>
-      <td class="qty">${o.jupeB&&o.jupeB!=='—'?o.qty||1:'—'}</td>
-      <td class="qty">${o.emboutB&&o.emboutB!=='—'?o.qty||1:'—'}</td>
-    </tr>
-  </table>
-
-  <div class="stitle">Marquage</div>
-  <div class="marq-block">
+  <!-- MARQUAGE -->
+  <div class="section" style="margin-top:10px">
+    <div class="section-title">Marquage</div>
     <div class="marq-row">
-      <div class="chk-item">${chk(o.marquage==='OUI')} OUI ${o.marquage==='OUI'&&o.marquageTexte?'<span style="font-size:12px;color:#555;margin-left:8px">→ '+o.marquageTexte+'</span>':''}</div>
+      <div class="chk-item">${chk(o.marquage==='OUI')} OUI ${o.marquage==='OUI'&&o.marquageTexte?'<span style="font-size:12px;color:#555;margin-left:6px">→ '+o.marquageTexte+'</span>':''}</div>
       <div class="chk-item">${chk(o.marquage==='NON')} NON</div>
     </div>
   </div>
 
-  <div class="stitle">Identification de la vérification</div>
-  <div class="verif-block">
-    <div class="vrow">
-      <div class="vlbl">${chk(o.typeVerification==='aucune')} PAS DE VERIFICATION</div>
-    </div>
-    <div class="vrow">
-      <div class="vlbl">${chk(o.typeVerification==='banc')} BANC D'EPREUVES</div>
-      <div class="vfields">
-        <div class="vf">PRESSION DE RUPTURE <span class="vline">${o.typeVerification==='banc'&&o.pressionRupture?o.pressionRupture+' bar':''}</span></div>
-        <div class="vf">PRESSION D'ESSAI <span class="vline">${o.typeVerification==='banc'&&o.pressionEssai?o.pressionEssai+' bar':''}</span></div>
+  <!-- VÉRIFICATION -->
+  <div class="section" style="margin-top:10px">
+    <div class="section-title">Identification de la vérification</div>
+    <div class="verif-items">
+      <div class="verif-row">
+        <div class="verif-label">${chk(o.typeVerification==='aucune')} PAS DE VERIFICATION</div>
       </div>
-    </div>
-    <div class="vrow">
-      <div class="vlbl">${chk(o.typeVerification==='veritas')} VERITAS (joindre rapport)</div>
-      <div class="vfields">
-        <div class="vf">CONFORME <span class="vline">${o.typeVerification==='veritas'&&o.conformite==='oui'?'OUI':''}</span></div>
-        <div class="vf">NON-CONFORME <span class="vline">${o.typeVerification==='veritas'&&o.conformite==='non'?'NON':''}</span></div>
+      <div class="verif-row">
+        <div class="verif-label">${chk(o.typeVerification==='banc')} BANC D'EPREUVES</div>
+        <div class="verif-fields">
+          <div class="verif-field">Pression de Rupture <span class="vline">${o.typeVerification==='banc'&&o.pressionRupture?o.pressionRupture+' bar':''}</span></div>
+          <div class="verif-field">Pression d'Essai <span class="vline">${o.typeVerification==='banc'&&o.pressionEssai?o.pressionEssai+' bar':''}</span></div>
+        </div>
+      </div>
+      <div class="verif-row">
+        <div class="verif-label">${chk(o.typeVerification==='veritas')} VERITAS (joindre rapport)</div>
+        <div class="verif-fields">
+          <div class="verif-field">Conforme <span class="vline">${o.typeVerification==='veritas'&&o.conformite==='oui'?'OUI':''}</span></div>
+          <div class="verif-field">Non-Conforme <span class="vline">${o.typeVerification==='veritas'&&o.conformite==='non'?'NON':''}</span></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="stitle">Identification de la facturation</div>
-  <table class="fact">
-    <tr>
-      <td style="width:28%"><span class="lbl">N° Code client (NCC)</span><span class="val">${o.clientNcc||'—'}</span></td>
-      <td style="width:24%"><span class="lbl">N° de Proforma</span><span class="val">${o.numProforma||'—'}</span></td>
-      <td>
-        <span class="lbl">N° du Bon de Livraison</span>
-        <div class="bl-row"><span style="color:#888;min-width:100px">INFORMATIQUE :</span><strong>${o.numBl||'—'}</strong></div>
-        <div class="bl-row"><span style="color:#888;min-width:100px">MANUEL :</span></div>
-      </td>
-    </tr>
-  </table>
-  <table class="foot">
-    <tr>
-      <td><span class="lbl">Réception travaux</span><span class="val">${o.operateur||'—'}</span></td>
-      <td><span class="lbl">Message sur les travaux</span><span class="val" style="font-size:10px">${o.notes||''}</span></td>
-      <td><span class="lbl">Sortie de stock</span></td>
-      <td><span class="lbl">Date réception</span><span class="val">${new Date(o.createdAt).toLocaleDateString('fr-FR')}</span></td>
-      <td><span class="lbl">Validation travaux</span><span class="val">${o.validationPar||''}</span></td>
-    </tr>
-  </table>
+  <!-- FACTURATION -->
+  <div class="section" style="margin-top:10px;flex:1;display:flex;flex-direction:column">
+    <div class="section-title">Identification de la facturation</div>
+    <div class="fact-top" style="margin-top:0;border-top:1px solid #000">
+      <div class="fact-cell">
+        <div class="fact-lbl">N° Code client (NCC)</div>
+        <div class="fact-val">${o.clientNcc||'—'}</div>
+      </div>
+      <div class="fact-cell">
+        <div class="fact-lbl">N° de Proforma</div>
+        <div class="fact-val">${o.numProforma||'—'}</div>
+      </div>
+      <div class="fact-cell">
+        <div class="fact-lbl">N° du Bon de Livraison</div>
+        <div class="fact-bl">
+          <div class="fact-bl-row"><span style="color:#888;min-width:100px">INFORMATIQUE :</span><strong>${o.numBl||'—'}</strong></div>
+          <div class="fact-bl-row"><span style="color:#888;min-width:100px">MANUEL :</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="fact-bottom" style="flex:1">
+      <div class="foot-cell"><div class="foot-lbl">Réception travaux</div><div class="foot-val">${o.operateur||'—'}</div></div>
+      <div class="foot-cell"><div class="foot-lbl">Message sur les travaux</div><div class="foot-val" style="font-size:10px">${o.notes||''}</div></div>
+      <div class="foot-cell"><div class="foot-lbl">Sortie de stock</div></div>
+      <div class="foot-cell"><div class="foot-lbl">Date réception</div><div class="foot-val">${new Date(o.createdAt).toLocaleDateString('fr-FR')}</div></div>
+      <div class="foot-cell"><div class="foot-lbl">Validation travaux</div><div class="foot-val">${o.validationPar||''}</div></div>
+    </div>
+  </div>
 
-  <span class="pfooter">HydroFlex ${site.name} — ${o.ref} — Imprimé le ${new Date().toLocaleString('fr-FR')}</span>
+  <div class="pied">HydroFlex ${site.name} — ${o.ref} — Imprimé le ${new Date().toLocaleString('fr-FR')}</div>
   <script>window.print();<\/script></body></html>`);
   w.document.close();
 }
