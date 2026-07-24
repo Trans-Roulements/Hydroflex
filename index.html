@@ -1378,6 +1378,7 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
     <div class="detail-panel" id="modal-details"></div>
     <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-success btn-sm" onclick="avancerEtape()">✅ Valider étape</button>
+      <button class="btn btn-primary btn-sm" onclick="modifierOrdre()">✏️ Modifier</button>
       <button class="btn btn-secondary btn-sm" onclick="imprimerFiche()">🖨️ Fiche de travail</button>
       <button class="btn btn-danger btn-sm" onclick="supprimerOrdre()">🗑️ Supprimer</button>
     </div>
@@ -2218,6 +2219,9 @@ function imprimerFiche(){
 
 
 async function prepNouvel(){
+  currentEditId=null;
+  const btnCreer=document.getElementById('btn-creer-ordre');
+  if(btnCreer){btnCreer.textContent="✅ Créer l'ordre";btnCreer.style.background='';}
   const prefix=SITES[currentSite]?.prefix||'OF-';
   let next=1001;
   try{
@@ -2323,6 +2327,56 @@ function onSelectOp(){
   box.style.display='block';
 }
 
+let currentEditId=null;
+
+async function modifierOrdre(){
+  if(!currentOrdre)return;
+  const o=currentOrdre;
+  if(o.statut==='termine'){toast('❌ Impossible de modifier un ordre terminé','error');return;}
+  currentEditId=o.id;
+  closeModal('modal-ordre');
+  await prepNouvel();
+  const set=(id,val)=>{const el=document.getElementById(id);if(el&&val!==undefined&&val!==null)el.value=val;};
+  document.getElementById('new-ref').value=o.ref;
+  if(document.getElementById('new-ref-display'))document.getElementById('new-ref-display').textContent='✏️ '+o.ref;
+  // Client
+  const clientSel=document.getElementById('new-client-select');
+  if(clientSel){const c=clients.find(x=>x.nom===o.client);if(c){clientSel.value=c.id;onSelectClient();}}
+  // OT
+  setTimeout(()=>{
+    set('new-temp-ot',o.temp);
+    const appEl=document.getElementById('new-application');if(appEl&&o.application)appEl.value=o.application;
+    const fluEl=document.getElementById('new-fluide');if(fluEl&&o.fluide)fluEl.value=o.fluide;
+    const repEl=document.getElementById('new-reprise');if(repEl)repEl.value=o.reprise||'Neuf';
+    set('new-qty',o.qty||1);
+    set('new-num-proforma',o.numProforma);
+    set('new-notes',o.notes);
+    const tvaEl=document.getElementById('new-tva');if(tvaEl)tvaEl.checked=!!o.tva;
+    setMarquage(o.marquage||'NON');
+    if(o.marquageTexte){set('new-marquage-texte',o.marquageTexte);const z=document.getElementById('marq-texte-zone');if(z)z.style.display='block';}
+    // Identification
+    const dnEl=document.getElementById('new-dn');if(dnEl&&o.dn)dnEl.value=o.dn;
+    set('new-ref-flex',o.refFlex);
+    set('new-longueur',o.longueur);
+    set('new-pression',o.pression);
+    set('new-temp',o.temp);
+    // Opérateur
+    const opSel=document.getElementById('new-operateur-select');
+    if(opSel&&o.operateur){const op=operateurs.find(x=>x.nom===o.operateur);if(op){opSel.value=op.id;onSelectOp();}}
+    // Vérification
+    onSelectVerif(o.typeVerification||'aucune');
+    if(o.pressionRupture)set('new-pression-rupture',o.pressionRupture);
+    if(o.pressionEssai)set('new-pression-essai',o.pressionEssai);
+    const prioEl=document.getElementById('new-priorite');if(prioEl)prioEl.value=o.statut==='urgent'?'urgent':'normal';
+    calcMontant();
+    updateFlexSVG();
+  },300);
+  const btnCreer=document.getElementById('btn-creer-ordre');
+  if(btnCreer){btnCreer.textContent='💾 Enregistrer les modifications';btnCreer.style.background='var(--cyan)';}
+  toast(`✏️ Mode modification — ${o.ref}`);
+  showPage('nouvel-ordre');
+}
+
 async function creerOrdre(){
   const clientId=document.getElementById('new-client-select').value;
   const clientObj=clients.find(c=>c.id===clientId);
@@ -2363,12 +2417,30 @@ async function creerOrdre(){
     etape_actuelle:0,created_at:new Date().toISOString(),updated_at:new Date().toISOString()
   };
   try{
-    const {error}=await sb.from('ordres_fabrication').insert([row]);if(error) throw error;
-    await logAction('ORDRE_CREE',`Ordre ${row.reference} créé pour ${row.client}`);
-    await loadOrdres();renderDashboard();
-    toast('✅ Ordre '+row.reference+' créé !');showPage('ordres');
+    if(currentEditId){
+      // MODE MODIFICATION
+      const {error}=await sb.from('ordres_fabrication').update({...row,
+        validation_statut:currentOrdre?.validationStatut==='valide'?'a_valider':undefined,
+        updated_at:new Date().toISOString()
+      }).eq('id',currentEditId);
+      if(error)throw error;
+      await logAction('ORDRE_MODIFIE',`Ordre ${row.reference} modifié`);
+      await loadOrdres();renderDashboard();
+      toast('✅ Ordre '+row.reference+' modifié !');
+      currentEditId=null;
+      // Réinitialiser le bouton
+      const btnCreer=document.getElementById('btn-creer-ordre');
+      if(btnCreer){btnCreer.textContent="✅ Créer l'ordre";btnCreer.style.background='';}
+      showPage('ordres');
+    }else{
+      // MODE CRÉATION
+      const {error}=await sb.from('ordres_fabrication').insert([row]);if(error) throw error;
+      await logAction('ORDRE_CREE',`Ordre ${row.reference} créé pour ${row.client}`);
+      await loadOrdres();renderDashboard();
+      toast('✅ Ordre '+row.reference+' créé !');showPage('ordres');
+    }
   }catch(e){toast('❌ Erreur : '+e.message,'error');}
-  finally{btn.disabled=false;btn.textContent="✅ Créer l'ordre";}
+  finally{btn.disabled=false;btn.textContent=currentEditId?"💾 Enregistrer les modifications":"✅ Créer l'ordre";}
 }
 
 // ── CLIENTS ──
