@@ -1762,6 +1762,8 @@ function renderCurrentPage(){
 
 function renderPage(p){
   const map={dashboard:renderDashboard,ordres:renderOrdres,'nouvel-ordre':prepNouvel,clients:renderClients,operateurs:renderOperateurs,stock:renderStock,transfert:renderTransfert,inventaire:renderInventaire,historique:renderHistorique,'vue-globale':renderVueGlobale,'valider-ordres':renderValiderOrdres,'valider-transferts':renderValiderTransferts,journal:renderJournal,config:renderConfig};
+  // Ne pas appeler prepNouvel si on est en mode modification
+  if(p==='nouvel-ordre'&&currentEditId) return;
   if(map[p]) map[p]();
 }
 
