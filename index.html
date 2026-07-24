@@ -2087,7 +2087,7 @@ function imprimerFiche(){
       Client : &nbsp;<strong>${o.client||'—'}</strong>
       ${o.clientNcc?'<br>NCC : &nbsp;<strong>'+o.clientNcc+'</strong>':''}
     </td>
-    <td class="hdr-title">ORDRE DE TRAVAIL</td>
+    <td class="hdr-title">ORDRE DE FABRICATION</td>
     <td class="hdr-site">
       <div class="site-tag">${site.name}</div>
       <div style="font-size:9px;color:#666;margin-top:6px">${new Date(o.createdAt).toLocaleDateString('fr-FR')}</div>
@@ -2730,9 +2730,9 @@ function imprimerFicheArticle(){
   const tbodyInv=document.getElementById('fiche-art-inv').innerHTML;
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fiche ${art.ref}</title>
   <style>
-    @page{size:A4 portrait;margin:15mm 15mm 15mm 20mm;}
+    @page{size:A4 portrait;margin:15mm 12mm 15mm 28mm;}
     *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:Arial,sans-serif;color:#111;font-size:11px;width:175mm;}
+    body{font-family:Arial,sans-serif;color:#111;font-size:11px;width:170mm;}
     h2{font-size:18px;font-weight:900;letter-spacing:1px;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:12px;}
     h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
       border-bottom:1.5px solid #000;padding-bottom:4px;margin:14px 0 8px 0;}
