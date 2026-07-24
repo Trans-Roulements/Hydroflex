@@ -2853,6 +2853,26 @@ function csvDragOver(e){e.preventDefault();document.getElementById('csv-drop').c
 function csvDragLeave(){document.getElementById('csv-drop').classList.remove('drag-over');}
 function csvDrop(e){e.preventDefault();csvDragLeave();handleCsvFile(e.dataTransfer.files[0]);}
 function handleCsvFile(file){if(!file)return;const r=new FileReader();r.onload=e=>parseCsv(e.target.result);r.readAsText(file,'UTF-8');}
+function parseCSVLine(line, sep){
+  // Vrai parseur CSV : les guillemets ne sont délimiteurs que EN DÉBUT de champ
+  const result=[];let cur='';let inQ=false;let fieldStart=true;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){
+      if(fieldStart&&!inQ){inQ=true;fieldStart=false;continue;}   // Début champ quoté
+      if(inQ&&line[i+1]==='"'){cur+='"';i++;continue;}            // Quote échappée ""
+      if(inQ){inQ=false;continue;}                                // Fin champ quoté
+      cur+=ch;                                                     // " au milieu → littéral
+    }else if(ch===sep&&!inQ){
+      result.push(cur.trim());cur='';fieldStart=true;
+    }else{
+      cur+=ch;fieldStart=false;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
 function parseCsv(text){
   const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
   if(lines.length<2)return showCsvError('Fichier vide.');
@@ -2864,7 +2884,7 @@ function parseCsv(text){
     const nbComma=(firstLine.match(/,/g)||[]).length;
     sep=nbSemi>=nbComma?';':',';
   }
-  const headers=firstLine.split(sep).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
+  const headers=parseCSVLine(firstLine,sep).map(h=>h.toLowerCase().replace(/['"]/g,'').trim());
   const findCol=(...variants)=>{
     for(const v of variants){
       const ex=headers.indexOf(v);if(ex>=0)return ex;
@@ -2878,35 +2898,9 @@ function parseCsv(text){
   const iSeuil=findCol('stock m','stock mini','stock min','seuil','mini','minimum','min','seuil_minimum');
   const iUnite=findCol('unite','unit','um');
   const iRefFour=findCol('reference fourni','ref fourni','ref_fournisseur','fournisseur','supplier');
-  if(iRef<0)return showCsvError('Colonne référence introuvable. Colonnes détectées : '+headers.join(' | ')+'\nSéparateur utilisé : "'+sep+'"');
-  if(iDes<0)return showCsvError('Colonne désignation introuvable. Colonnes : '+headers.join(' | '));
-
-  const parseNum=(v)=>v?parseFloat(v.replace(/\s/g,'').replace(',','.'))||0:0;
-
-  const rows=[];
-  for(let i=1;i<lines.length;i++){
-    let cols=lines[i].split(sep).map(x=>x.trim().replace(/^"|"$/g,''));
-    // Si trop de colonnes (comma séparateur + décimales FR), fusion des colonnes numériques divisées
-    if(sep===','&&cols.length>headers.length){
-      const fixed=[];let j=0;
-      while(j<cols.length){
-        if(j+1<cols.length&&/^\d+$/.test(cols[j])&&/^\d{1,2}$/.test(cols[j+1])&&fixed.length===iStk){
-          fixed.push(cols[j]+'.'+cols[j+1]);j+=2;
-        }else{fixed.push(cols[j]);j++;}
-      }
-      if(fixed.length===headers.length)cols=fixed;
-    }
-    const ref=cols[iRef]||'';const des=cols[iDes]||'';
-    if(!ref||!des)continue;
-    rows.push({
-      reference:ref,designation:des,
-      categorie:iCat>=0&&cols[iCat]?cols[iCat]:'Accessoire',
-      stock_actuel:iStk>=0?parseNum(cols[iStk]):0,
-      seuil_minimum:iSeuil>=0?parseNum(cols[iSeuil]):0,
-      unite:iUnite>=0&&cols[iUnite]?cols[iUnite]:'pcs',
-      ref_fournisseur:iRefFour>=0&&cols[iRefFour]?cols[iRefFour]:null,
-    });
-  }
+  if(iRef<0)return showCsvError('Colonne référence introuvable.\nColonnes : '+headers.join(' | ')+'\nSéparateur : "'+sep+'"');
+  if(iDes<0)return showCsvError('Colonne désignation introuvable.\nColonnes : '+headers.join(' | '));
+  const parseNum=(v)=>{if(!v&&v!==0)return 0;return parseFloat(String(v).replace(/\s/g,'').replace(',','.'))||0;};
   const normCat=c=>{
     if(!c)return 'Accessoire';
     const cl=c.toLowerCase().trim();
@@ -2914,13 +2908,29 @@ function parseCsv(text){
     if(cl.includes('jupe'))return 'Jupe';
     if(cl.includes('embout'))return 'Embout';
     if(cl.includes('raccord'))return 'Raccord';
-    return c; // Garder tel quel si non reconnu
+    if(cl.includes('accessoire'))return 'Accessoire';
+    return c;
   };
-  if(!rows.length)return showCsvError('Aucune ligne valide. Séparateur utilisé : "'+sep+'". Essaie l\'autre option.');
-  // Normaliser les catégories
-  rows.forEach(r=>{r.categorie=normCat(r.categorie);});
+  const rows=[];let erreurs=0;
+  for(let i=1;i<lines.length;i++){
+    const cols=parseCSVLine(lines[i],sep);
+    const ref=iRef>=0?cols[iRef]||'':'';
+    const des=iDes>=0?cols[iDes]||'':'';
+    if(!ref||!des){erreurs++;continue;}
+    const catRaw=iCat>=0?cols[iCat]||'':'';
+    rows.push({
+      reference:ref,designation:des,
+      categorie:normCat(catRaw),
+      stock_actuel:iStk>=0?parseNum(cols[iStk]):0,
+      seuil_minimum:iSeuil>=0?parseNum(cols[iSeuil]):0,
+      unite:iUnite>=0&&cols[iUnite]?cols[iUnite].replace(/['"]/g,''):'pcs',
+      ref_fournisseur:iRefFour>=0&&cols[iRefFour]?cols[iRefFour]:null,
+    });
+  }
+  if(!rows.length)return showCsvError('Aucune ligne valide. Séparateur : "'+sep+'"');
+  if(erreurs>0)console.warn(erreurs+' lignes ignorées (ref ou désignation vide)');
   csvParsed=rows;
-  // Peupler le filtre catégories
+  // Peupler filtre catégories
   const cats=[...new Set(rows.map(r=>r.categorie).filter(Boolean))].sort();
   const filtSel=document.getElementById('csv-filtre-cat');
   if(filtSel){
@@ -2929,13 +2939,6 @@ function parseCsv(text){
   }
   document.getElementById('csv-preview-zone').style.display='block';
   updateCsvPreview();
-  if(iStk>=0)cols2.push('✅ Stock → "'+headers[iStk]+'"');else cols2.push('⚠️ Stock non trouvé');
-  if(iSeuil>=0)cols2.push('✅ Seuil → "'+headers[iSeuil]+'"');
-  if(iCat>=0)cols2.push('✅ Cat → "'+headers[iCat]+'"');
-  cols2.push('Séparateur : "'+sep+'"');
-  document.getElementById('csv-count-lbl').innerHTML='<div style="color:var(--success);font-weight:700">✅ '+rows.length+' article(s) prêts</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px">'+cols2.join(' | ')+'</div>';
-  document.getElementById('csv-preview').innerHTML=`<div class="table-card" style="margin:0"><table><thead><tr><th>Réf</th><th>Désignation</th><th>Cat.</th><th>Stock</th><th>Seuil</th><th>Unité</th></tr></thead><tbody>${rows.slice(0,8).map(r=>`<tr><td><code>${r.reference}</code></td><td>${r.designation}</td><td>${r.categorie}</td><td><strong style="color:var(--accent)">${r.stock_actuel}</strong></td><td>${r.seuil_minimum}</td><td>${r.unite}</td></tr>`).join('')}${rows.length>8?`<tr class="empty"><td colspan="6">... et ${rows.length-8} autres</td></tr>`:''}</tbody></table></div>`;
-  document.getElementById('csv-preview-zone').style.display='block';
 }
 
 function updateCsvPreview(){
@@ -2981,10 +2984,13 @@ async function importCsv(){
     hideLoader();
     toast(`✅ ${Math.round(ok)} article(s) importés${cat?' — '+cat:''}  !`);
     await loadStock();
-    renderStock();
+    // Réinitialiser les filtres de la liste stock
+    const filtCatEl=document.getElementById('filter-cat');if(filtCatEl)filtCatEl.value='';
+    const searchEl=document.getElementById('search-stock');if(searchEl)searchEl.value='';
     // Basculer sur l'onglet "Liste stock"
     const tabListe=document.querySelector('[onclick*="tab-stk-liste"]');
     if(tabListe)tabListe.click();
+    renderStock();
     if(!cat)resetCsv();
   }catch(e){hideLoader();toast('❌ Erreur import : '+e.message,'error');}
 }
