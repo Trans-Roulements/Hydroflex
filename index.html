@@ -2796,7 +2796,7 @@ function renderStock(){
   document.getElementById('kpi-stk-total').textContent=stockData.length;
   document.getElementById('kpi-stk-crit').textContent=stockData.filter(s=>s.stock<s.seuil).length;
   document.getElementById('kpi-stk-jupes').textContent=stockData.filter(s=>s.cat==='Jupe').length;
-  const catCol={Jupe:'var(--accent)',Raccord:'var(--cyan)',Embout:'var(--text-muted)',Tuyau:'var(--text-muted)',Accessoire:'var(--text-muted)'};
+  const catCol={Jupe:'var(--accent)',Raccord:'var(--cyan)',Embout:'var(--text-muted)',Tuyau:'#4ecdc4',Flexible:'#4ecdc4',Accessoire:'var(--text-muted)'};
   document.getElementById('stock-tbody').innerHTML=list.length===0
     ?'<tr class="empty"><td colspan="8">Aucun composant</td></tr>'
     :list.map(s=>{
@@ -2907,7 +2907,18 @@ function parseCsv(text){
       ref_fournisseur:iRefFour>=0&&cols[iRefFour]?cols[iRefFour]:null,
     });
   }
+  const normCat=c=>{
+    if(!c)return 'Accessoire';
+    const cl=c.toLowerCase().trim();
+    if(cl.includes('flexible')||cl.includes('tuyau'))return 'Tuyau';
+    if(cl.includes('jupe'))return 'Jupe';
+    if(cl.includes('embout'))return 'Embout';
+    if(cl.includes('raccord'))return 'Raccord';
+    return c; // Garder tel quel si non reconnu
+  };
   if(!rows.length)return showCsvError('Aucune ligne valide. Séparateur utilisé : "'+sep+'". Essaie l\'autre option.');
+  // Normaliser les catégories
+  rows.forEach(r=>{r.categorie=normCat(r.categorie);});
   csvParsed=rows;
   // Peupler le filtre catégories
   const cats=[...new Set(rows.map(r=>r.categorie).filter(Boolean))].sort();
@@ -2969,9 +2980,12 @@ async function importCsv(){
     }
     hideLoader();
     toast(`✅ ${Math.round(ok)} article(s) importés${cat?' — '+cat:''}  !`);
-    // Si filtre actif : laisser le fichier ouvert pour importer d'autres catégories
+    await loadStock();
+    renderStock();
+    // Basculer sur l'onglet "Liste stock"
+    const tabListe=document.querySelector('[onclick*="tab-stk-liste"]');
+    if(tabListe)tabListe.click();
     if(!cat)resetCsv();
-    await loadStock();renderStock();
   }catch(e){hideLoader();toast('❌ Erreur import : '+e.message,'error');}
 }
 function resetCsv(){csvParsed=[];document.getElementById('csv-preview-zone').style.display='none';document.getElementById('csv-preview').innerHTML='';document.getElementById('csv-file').value='';}
