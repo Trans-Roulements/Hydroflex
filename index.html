@@ -2357,12 +2357,44 @@ async function modifierOrdre(){
     const tvaEl=document.getElementById('new-tva');if(tvaEl)tvaEl.checked=!!o.tva;
     setMarquage(o.marquage||'NON');
     if(o.marquageTexte){set('new-marquage-texte',o.marquageTexte);const z=document.getElementById('marq-texte-zone');if(z)z.style.display='block';}
-    // Identification
+
+    // Identification composants — chercher dans le stock par référence
+    const findStock=(ref,cat)=>stockData.find(s=>s.ref===ref&&(!cat||s.cat===cat));
+
+    // Jupe A
+    if(o.jupeA){const item=findStock(o.jupeA,'Jupe');const sel=document.getElementById('new-jupeA-select');
+      if(sel&&item){sel.value=item.id;onSelectStock('jupeA');}}
+    // Embout A
+    if(o.emboutA){const item=findStock(o.emboutA,'Embout');const sel=document.getElementById('new-emboutA-select');
+      if(sel&&item){sel.value=item.id;onSelectStock('emboutA');}}
+    // Raccord A
+    if(o.raccordA){const item=findStock(o.raccordA,'Raccord');const sel=document.getElementById('new-raccordA-select');
+      if(sel&&item){sel.value=item.id;onSelectStock('raccordA');}}
+    // Jupe B
+    if(o.jupeB){const item=findStock(o.jupeB,'Jupe');const sel=document.getElementById('new-jupeB-select');
+      if(sel&&item){sel.value=item.id;onSelectStock('jupeB');}}
+    // Embout B
+    if(o.emboutB){const item=findStock(o.emboutB,'Embout');const sel=document.getElementById('new-emboutB-select');
+      if(sel&&item){sel.value=item.id;onSelectStock('emboutB');}}
+    // Raccord B
+    if(o.raccordB){const item=findStock(o.raccordB,'Raccord');const sel=document.getElementById('new-raccordB-select');
+      if(sel&&item){sel.value=item.id;onSelectStock('raccordB');}}
+    // Flexible/Tuyau
+    if(o.refFlex){const item=findStock(o.refFlex,'Tuyau');const sel=document.getElementById('new-flex-select');
+      if(sel&&item){sel.value=item.id;onSelectStock('flex');}}
+
+    // Champs texte identification
     const dnEl=document.getElementById('new-dn');if(dnEl&&o.dn)dnEl.value=o.dn;
     set('new-ref-flex',o.refFlex);
     set('new-longueur',o.longueur);
     set('new-pression',o.pression);
     set('new-temp',o.temp);
+    // Types et tailles (champs texte libres)
+    set('new-raccordA-type',o.raccordAType);set('new-raccordA-taille',o.raccordATaille);
+    set('new-emboutA-type',o.emboutAType);
+    set('new-raccordB-type',o.raccordBType);set('new-raccordB-taille',o.raccordBTaille);
+    set('new-emboutB-type',o.emboutBType);
+
     // Opérateur
     const opSel=document.getElementById('new-operateur-select');
     if(opSel&&o.operateur){const op=operateurs.find(x=>x.nom===o.operateur);if(op){opSel.value=op.id;onSelectOp();}}
@@ -2373,7 +2405,7 @@ async function modifierOrdre(){
     const prioEl=document.getElementById('new-priorite');if(prioEl)prioEl.value=o.statut==='urgent'?'urgent':'normal';
     calcMontant();
     updateFlexSVG();
-  },300);
+  },400);
   const btnCreer=document.getElementById('btn-creer-ordre');
   if(btnCreer){btnCreer.textContent='💾 Enregistrer les modifications';btnCreer.style.background='var(--cyan)';}
   toast(`✏️ Mode modification — ${o.ref}`);
