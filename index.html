@@ -2022,8 +2022,8 @@ function imprimerFiche(){
   const o=currentOrdre;
   const site=SITES[o.site]||{name:o.site,color:'#f5a623'};
   const chk=ok=>ok
-    ?'<span style="display:inline-block;width:14px;height:14px;border:2px solid #000;background:#000;vertical-align:middle;margin-right:6px;flex-shrink:0"></span>'
-    :'<span style="display:inline-block;width:14px;height:14px;border:2px solid #000;vertical-align:middle;margin-right:6px;flex-shrink:0"></span>';
+    ?'<span style="display:inline-flex;width:16px;height:16px;border:2px solid #000;align-items:center;justify-content:center;font-size:14px;font-weight:900;line-height:1;vertical-align:middle;margin-right:6px;flex-shrink:0">X</span>'
+    :'<span style="display:inline-flex;width:16px;height:16px;border:2px solid #000;align-items:center;justify-content:center;vertical-align:middle;margin-right:6px;flex-shrink:0"></span>';
   const showL=v=>v?(v>=10?(v/1000).toFixed(2):parseFloat(v).toFixed(2))+' m':'—';
   const w=window.open('','_blank','width=794,height=1123');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>OF ${o.ref}</title>
