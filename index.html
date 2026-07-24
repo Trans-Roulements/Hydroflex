@@ -586,7 +586,7 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
                       </select>
                     </div>
                   </div>
-                  <div style="margin-bottom:5px"><div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Longueur (mm) *</div><input type="number" id="new-longueur" placeholder="1200" oninput="updateFlexSVG()" style="width:100%;background:var(--steel);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-size:12px;outline:none"></div>
+                  <div style="margin-bottom:5px"><div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Longueur (m) *</div><input type="number" id="new-longueur" placeholder="ex: 1.20" step="0.01" min="0" oninput="updateFlexSVG()" style="width:100%;background:var(--steel);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-size:12px;outline:none"></div>
                   <div style="margin-bottom:5px"><div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Pression de service (bar) *</div><input type="number" id="new-pression" placeholder="350" oninput="updateFlexSVG()" style="width:100%;background:var(--steel);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-size:12px;outline:none"></div>
                   <div><div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Température (°C)</div><input type="text" id="new-temp" placeholder="-40 à +100" style="width:100%;background:var(--steel);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-size:12px;outline:none"></div>
                 </div>
@@ -1897,7 +1897,7 @@ function renderOrdres(){
         <td><code>${siteBadge}${o.ref}</code></td>
         <td>${o.client||'—'}</td>
         <td>${o.dn||'—'}</td>
-        <td>${o.longueur||'—'} mm</td>
+        <td>${o.longueur?(o.longueur>=10?(o.longueur>=10?(o.longueur/1000).toFixed(2):parseFloat(o.longueur).toFixed(2))+' m':parseFloat(o.longueur).toFixed(2)+' m'):'—'}</td>
         <td>${o.operateur||'—'}</td>
         <td><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:4px;background:var(--steel-light);border-radius:2px"><div style="width:${prog}%;height:100%;background:${isTermine?'var(--success)':'var(--accent)'};border-radius:2px"></div></div><span style="font-size:11px;color:var(--text-muted)">${isTermine?'✅':'${o.etape}/${ETAPES.length}'}</span></div></td>
         <td>${isTermine?'<span class="badge badge-done">✅ Terminé</span>':`<span class="badge ${vB[valSt]||'badge-wait'}">${vL[valSt]||valSt}</span>${valSt==='valide'?'<br><span class="badge '+sB[o.statut]+' " style="font-size:10px">'+sL[o.statut]+'</span>':''}`}</td>
@@ -1934,7 +1934,7 @@ function openOrdre(id){
     ['Client',o.client||'—'],
     ['Opérateur',o.operateur||'—'],
     ['DN',o.dn||'—'],
-    ['Longueur',o.longueur?o.longueur+' mm':'—'],
+    ['Longueur',o.longueur?(o.longueur>=10?(o.longueur>=10?(o.longueur/1000).toFixed(2):parseFloat(o.longueur).toFixed(2))+' m':parseFloat(o.longueur).toFixed(2)+' m'):'—'],
     ['Pression',o.pression?o.pression+' bar':'—'],
     ['Raccord A',o.raccordA||'—'],
     ['Embout A',o.emboutA||'—'],
@@ -2120,16 +2120,16 @@ function imprimerFiche(){
     <tr>
       <td class="ref">${o.emboutA||'—'}</td>
       <td class="ref">${o.jupeA||'—'}</td>
-      <td class="ref flex">${o.refFlex||o.dn||'—'}<div style="font-size:9px;color:#888;margin-top:3px">${o.dn||''}</div></td>
+      <td class="ref flex">${o.refFlex?o.refFlex+(o.dn?' ('+o.dn+')':''):o.dn?o.dn:'—'}</td>
       <td class="ref">${o.jupeB||'—'}</td>
       <td class="ref">${o.emboutB||'—'}</td>
     </tr>
     <tr>
-      <td class="qty">${o.qty||1}</td>
-      <td class="qty">${o.qty||1}</td>
-      <td class="qty flex">${o.longueur?(o.longueur/1000).toFixed(2)+' m':'—'}</td>
-      <td class="qty">${o.qty||1}</td>
-      <td class="qty">${o.qty||1}</td>
+      <td class="qty">${o.emboutA&&o.emboutA!=='—'?o.qty||1:'—'}</td>
+      <td class="qty">${o.jupeA&&o.jupeA!=='—'?o.qty||1:'—'}</td>
+      <td class="qty flex">${o.refFlex||o.longueur?(o.longueur?(o.longueur>=10?(o.longueur>=10?(o.longueur/1000).toFixed(2):parseFloat(o.longueur).toFixed(2))+' m':parseFloat(o.longueur).toFixed(2)+' m'):'—'):'—'}</td>
+      <td class="qty">${o.jupeB&&o.jupeB!=='—'?o.qty||1:'—'}</td>
+      <td class="qty">${o.emboutB&&o.emboutB!=='—'?o.qty||1:'—'}</td>
     </tr>
   </table>
 
@@ -2313,7 +2313,7 @@ async function creerOrdre(){
     embout_a_ref:document.getElementById('new-emboutA-ref').value||null,embout_a_ref_four:document.getElementById('new-emboutA-four').value||null,
     embout_a_type:document.getElementById('new-emboutA-type').value||null,
     jupe_a_ref:document.getElementById('new-jupeA-ref').value||null,jupe_a_ref_four:document.getElementById('new-jupeA-four').value||null,
-    dn:document.getElementById('new-dn').value,longueur:parseInt(longueur),
+    dn:document.getElementById('new-dn').value,longueur:parseFloat(longueur)||null,
     ref_flexible:document.getElementById('new-ref-flex').value||null,pression:parseInt(pression),
     type_tresse:document.getElementById('new-tresse').value||null,temperature:document.getElementById('new-temp').value||null,
     jupe_b_ref:document.getElementById('new-jupeB-ref').value||null,jupe_b_ref_four:document.getElementById('new-jupeB-four').value||null,
@@ -2730,9 +2730,11 @@ function imprimerFicheArticle(){
   const tbodyInv=document.getElementById('fiche-art-inv').innerHTML;
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fiche ${art.ref}</title>
   <style>
-    @page{size:A4 portrait;margin:15mm 10mm 15mm 35mm;}
+    @page{size:A4 portrait;margin:0;}
     *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:Arial,sans-serif;color:#111;font-size:11px;width:165mm;padding-left:2mm;}
+    body{font-family:Arial,sans-serif;color:#111;font-size:11px;
+      width:210mm;min-height:297mm;
+      padding:15mm 12mm 15mm 38mm;}
     h2{font-size:18px;font-weight:900;letter-spacing:1px;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:12px;}
     h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
       border-bottom:1.5px solid #000;padding-bottom:4px;margin:14px 0 8px 0;}
@@ -3458,7 +3460,7 @@ function renderValiderOrdres(){
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;font-size:12px">
         <div><div style="color:var(--text-muted);margin-bottom:2px">Client</div><strong>${o.client||'—'}</strong></div>
         <div><div style="color:var(--text-muted);margin-bottom:2px">Opérateur</div><strong>${o.operateur||'—'}</strong></div>
-        <div><div style="color:var(--text-muted);margin-bottom:2px">DN / Longueur</div><strong>${o.dn||'—'} / ${o.longueur||'—'} mm</strong></div>
+        <div><div style="color:var(--text-muted);margin-bottom:2px">DN / Longueur</div><strong>${o.dn||'—'} / ${o.longueur?(o.longueur>=10?(o.longueur>=10?(o.longueur/1000).toFixed(2):parseFloat(o.longueur).toFixed(2))+' m':parseFloat(o.longueur).toFixed(2)+' m'):'—'}</strong></div>
         <div><div style="color:var(--text-muted);margin-bottom:2px">Pression</div><strong>${o.pression||'—'} bar</strong></div>
         <div><div style="color:var(--text-muted);margin-bottom:2px">Raccord A</div><span>${o.raccordA||'—'}</span></div>
         <div><div style="color:var(--text-muted);margin-bottom:2px">Embout A</div><span>${o.emboutA||'—'}</span></div>
@@ -3839,7 +3841,7 @@ function updateFlexSVG(){
   if(el('svg-raccordB')) el('svg-raccordB').textContent=raccordB.substring(0,8);
   if(el('svg-flex-dn')) el('svg-flex-dn').textContent=dn+(refFlex?' — '+refFlex:'');
   if(el('svg-flex-long')) el('svg-flex-long').textContent=`L: ${long} mm | P: ${pres} bar`;
-  if(el('svg-longueur-label')) el('svg-longueur-label').textContent=long!=='—'?`Longueur : ${long} mm`:'Longueur totale';
+  if(el('svg-longueur-label')) el('svg-longueur-label').textContent=long!=='—'?`Longueur : ${long} m`:'Longueur totale';
   // Couleur tuyau selon DN
   const dnNum=parseInt(dn.replace('DN',''));
   const tuyauColor=dnNum<=10?'#2a2a3a':dnNum<=16?'#3a3a4a':dnNum<=25?'#4a3a2a':'#3a2a2a';
