@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HydroFlex Multi-Sites</title>
+<title>FlexCI — Gestion Atelier</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -224,8 +224,9 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
 <div id="login-screen">
   <div class="login-box">
     <div class="login-logo">
-      <h1>🔧 HYDROFLEX</h1>
-      <span>Gestion Atelier Multi-Sites</span>
+      <h1 style="letter-spacing:2px;font-size:42px;margin-bottom:4px"><span style="color:white;font-weight:900">Flex</span><span style="color:var(--accent);font-weight:900">CI</span> <span style="font-size:16px;color:var(--text-muted);font-weight:400;letter-spacing:1px">v1.0</span></h1>
+      <span style="letter-spacing:3px;font-size:11px;color:var(--text-muted)">GESTION ATELIER MULTI-SITES</span>
+      <div style="margin-top:6px;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.3)">CÔTE D'IVOIRE</div>
     </div>
     <div class="login-step active" id="step-supabase">
       <div class="login-step-title">⚙️ Connexion Supabase</div>
@@ -264,8 +265,8 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
 <div id="app">
   <div class="sidebar">
     <div class="logo">
-      <h1>🔧 HYDROFLEX</h1>
-      <span>Atelier Multi-Sites</span>
+      <h1 style="letter-spacing:2px;font-size:28px"><span style="color:white;font-weight:900">Flex</span><span style="color:var(--accent);font-weight:900">CI</span> <span style="font-size:11px;color:var(--text-muted);font-weight:400">v1.0</span></h1>
+      <span style="font-size:10px;letter-spacing:2px;color:var(--text-muted)">ATELIER MULTI-SITES</span>
       <div class="site-badge" id="sidebar-site-badge">—</div>
     </div>
     <nav>
@@ -1218,7 +1219,7 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
           <div>
             <div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900">❓ Guide d'utilisation</div>
-            <div style="font-size:13px;color:var(--text-muted)">HydroFlex — Gestion Atelier Multi-Sites</div>
+            <div style="font-size:13px;color:var(--text-muted)">FlexCI — Gestion Atelier Multi-Sites</div>
           </div>
           <input type="text" id="search-aide" oninput="searchAide()" placeholder="🔍 Rechercher dans le guide..." style="background:var(--steel);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none;width:280px">
         </div>
@@ -1677,7 +1678,7 @@ async function initApp(){
     if(isAdmin){updateTransfertsBadge();updateOrdresBadge();}
     if(isResponsable){updateOrdresBadgeResp();}
     hideLoader();
-    toast('✅ Bienvenue sur HydroFlex !');
+    toast('✅ Bienvenue sur FlexCI !');
   }catch(e){hideLoader();toast('❌ Erreur init : '+e.message,'error');console.error(e);}
 }
 
@@ -2294,7 +2295,7 @@ function imprimerFiche(){
     </div>
   </div>
 
-  <div class="pied">HydroFlex ${site.name} — ${o.ref} — Imprimé le ${new Date().toLocaleString('fr-FR')}</div>
+  <div class="pied">FlexCI ${site.name} — ${o.ref} — Imprimé le ${new Date().toLocaleString('fr-FR')}</div>
   <script>window.print();<\/script></body></html>`);
   w.document.close();
 }
@@ -3040,7 +3041,7 @@ function imprimerFicheArticle(){
   <h3>Historique inventaires</h3>
   <table><thead><tr><th>Date</th><th>Site</th><th>Qté système</th><th>Qté comptée</th><th>Écart</th></tr></thead>
   <tbody>${tbodyInv}</tbody></table>
-  <div class="footer">HydroFlex — Fiche Article ${art.ref} — Imprimée le ${new Date().toLocaleString('fr-FR')}</div>
+  <div class="footer">FlexCI — Fiche Article ${art.ref} — Imprimée le ${new Date().toLocaleString('fr-FR')}</div>
   <script>window.print();<\/script></body></html>`);
   w.document.close();
 }
@@ -3622,7 +3623,7 @@ function imprimerInventaire(){
   .sum-num{font-size:24px;font-weight:800;}.sum-lbl{font-size:10px;color:#888;text-transform:uppercase;}
   @media print{button{display:none;}}</style></head><body>
   <div class="header">
-    <div><div class="logo">🔧 HYDROFLEX — Rapport d'Inventaire</div><div style="font-size:10px;opacity:.6;margin-top:2px">Atelier de fabrication de flexibles hydrauliques</div></div>
+    <div><div class="logo">FlexCI — Rapport d'Inventaire</div><div style="font-size:10px;opacity:.6;margin-top:2px">Atelier de fabrication de flexibles hydrauliques</div></div>
     <div style="text-align:right"><span class="site">${site.name}</span><div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:4px">${new Date(currentInv.created_at).toLocaleDateString('fr-FR')} — ${currentInv.realise_par||'—'}</div></div>
   </div>
   <div class="summary">
@@ -3641,7 +3642,7 @@ function imprimerInventaire(){
     <td>${l.commentaire||''}</td></tr>`;
   }).join('')}</tbody></table>
   <div style="margin-top:16px;padding-top:10px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:10px;color:#aaa">
-    <span>HydroFlex — ${site.name} — Inventaire du ${new Date(currentInv.created_at).toLocaleDateString('fr-FR')}</span>
+    <span>FlexCI — ${site.name} — Inventaire du ${new Date(currentInv.created_at).toLocaleDateString('fr-FR')}</span>
     <span>Statut : ${currentInv.statut==='cloture'?'✅ Clôturé':'⏳ En cours'}</span>
   </div>
   <script>window.print();<\/script></body></html>`);
@@ -3658,7 +3659,7 @@ const AIDE_SECTIONS=[
 {titre:'🚀 Démarrage & Connexion',contenu:`
 <div class="aide-section">
   <h2>Connexion à l'application</h2>
-  <p>HydroFlex s'ouvre dans le navigateur. Trois étapes de connexion :</p>
+  <p>FlexCI s'ouvre dans le navigateur. Trois étapes de connexion :</p>
   <ol>
     <li><strong>URL Supabase</strong> — l'adresse de votre base de données (fournie par l'administrateur)</li>
     <li><strong>Clé API</strong> — la clé d'accès (fournie par l'administrateur)</li>
@@ -4285,7 +4286,7 @@ async function logAction(action,detail){
 function subscribeRealtime(){
   if(!sb)return;
   try{
-    realtimeSub=sb.channel('hydroflex-changes')
+    realtimeSub=sb.channel('flexci-changes')
       .on('postgres_changes',{event:'*',schema:'public',table:'ordres_fabrication'},()=>{loadOrdres().then(()=>{renderCurrentPage();});})
       .on('postgres_changes',{event:'*',schema:'public',table:'transferts'},()=>{loadTransferts().then(()=>{if(isAdmin)updateTransfertsBadge();renderCurrentPage();});})
       .subscribe();
