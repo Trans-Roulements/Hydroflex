@@ -280,6 +280,7 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
       <div class="nav-item" onclick="showPage('transfert')" id="nav-transfert"><span class="icon">🔄</span> Transfert Inter-Sites</div>
       <div class="nav-item" onclick="showPage('inventaire')" id="nav-inventaire"><span class="icon">📊</span> Inventaire</div>
       <div class="nav-item" onclick="showPage('historique')" id="nav-historique"><span class="icon">📁</span> Historique</div>
+      <div class="nav-item" onclick="showPage('aide')" id="nav-aide"><span class="icon">❓</span> Guide d'utilisation</div>
       <div id="admin-nav-section" style="display:none">
         <div class="nav-section" style="color:#a78bfa">Administration</div>
         <div class="nav-item admin-item" onclick="showPage('vue-globale')" id="nav-vue-globale"><span class="icon">🌍</span> Vue Globale</div>
@@ -293,6 +294,14 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
         </div>
         <div class="nav-item admin-item" onclick="showPage('journal')" id="nav-journal"><span class="icon">📒</span> Journal d'Activité</div>
         <div class="nav-item admin-item" onclick="showPage('config')" id="nav-config"><span class="icon">⚙️</span> Configuration</div>
+      </div>
+      <!-- NAV RESPONSABLE -->
+      <div id="resp-nav-section" style="display:none">
+        <div class="nav-section" style="color:#4ecdc4">Responsable</div>
+        <div class="nav-item" onclick="showPage('valider-ordres')" id="nav-valider-ordres-resp">
+          <span class="icon">📋</span> Valider Ordres
+          <span id="badge-ordres-count-resp" style="margin-left:auto;background:var(--danger);color:white;border-radius:10px;padding:1px 7px;font-size:10px;display:none">0</span>
+        </div>
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -1204,6 +1213,29 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
         </div>
       </div>
 
+      <!-- GUIDE D'UTILISATION -->
+      <div class="page" id="page-aide">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900">❓ Guide d'utilisation</div>
+            <div style="font-size:13px;color:var(--text-muted)">HydroFlex — Gestion Atelier Multi-Sites</div>
+          </div>
+          <input type="text" id="search-aide" oninput="searchAide()" placeholder="🔍 Rechercher dans le guide..." style="background:var(--steel);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none;width:280px">
+        </div>
+
+        <div style="display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap" id="aide-tabs">
+          <div class="tab active" onclick="switchAideTab(0)">🚀 Démarrage</div>
+          <div class="tab" onclick="switchAideTab(1)">📋 Ordres</div>
+          <div class="tab" onclick="switchAideTab(2)">📦 Stock</div>
+          <div class="tab" onclick="switchAideTab(3)">👤 Clients</div>
+          <div class="tab" onclick="switchAideTab(4)">🔄 Transferts</div>
+          <div class="tab" onclick="switchAideTab(5)">📊 Inventaire</div>
+          <div class="tab" onclick="switchAideTab(6)">🛡️ Administration</div>
+        </div>
+
+        <div id="aide-content" style="max-width:900px"></div>
+      </div>
+
       <!-- HISTORIQUE -->
       <div class="page" id="page-historique">
         <div class="mini-stats">
@@ -1579,6 +1611,8 @@ function goToPassword(){
 }
 function backToSite(){showLoginStep('step-site');}
 
+let isResponsable=false;
+
 async function doLogin(){
   const site=document.getElementById('site-select').value;
   const pwd=document.getElementById('login-password').value;
@@ -1587,12 +1621,26 @@ async function doLogin(){
   if(!pwd){err.textContent='Saisissez le mot de passe.';err.style.display='block';return;}
   showLoader('Vérification...');
   try{
+    // Vérifier d'abord le mot de passe normal du site
     const {data,error}=await sb.from('config').select('value').eq('key',site).single();
     if(error) throw error;
-    if(data.value!==pwd){hideLoader();err.textContent='Mot de passe incorrect.';err.style.display='block';return;}
-    currentSite=site;isAdmin=(site==='admin');
-    hideLoader();
-    await initApp();
+
+    if(data.value===pwd){
+      // Connexion normale
+      currentSite=site;isAdmin=(site==='admin');isResponsable=false;
+      hideLoader();await initApp();return;
+    }
+
+    // Vérifier si c'est le mot de passe responsable (uniquement pour les sites non-admin)
+    if(site!=='admin'){
+      const {data:respData}=await sb.from('config').select('value').eq('key','resp_'+site).single();
+      if(respData&&respData.value===pwd){
+        currentSite=site;isAdmin=false;isResponsable=true;
+        hideLoader();await initApp();return;
+      }
+    }
+
+    hideLoader();err.textContent='Mot de passe incorrect.';err.style.display='block';
   }catch(e){hideLoader();err.textContent='Erreur : '+e.message;err.style.display='block';}
 }
 
@@ -1606,7 +1654,7 @@ function logout(){
   if(!confirm('Se déconnecter ?')) return;
   if(realtimeSub) sb.removeChannel(realtimeSub);
   if(autoRefreshTimer) clearInterval(autoRefreshTimer);
-  currentSite=null;isAdmin=false;sb=null;
+  currentSite=null;isAdmin=false;isResponsable=false;sb=null;
   localStorage.removeItem('hf_sb');
   document.getElementById('app').classList.remove('visible');
   document.getElementById('login-screen').style.display='flex';
@@ -1627,6 +1675,7 @@ async function initApp(){
     subscribeRealtime();
     autoRefreshTimer=setInterval(refreshAll,30000);
     if(isAdmin){updateTransfertsBadge();updateOrdresBadge();}
+    if(isResponsable){updateOrdresBadgeResp();}
     hideLoader();
     toast('✅ Bienvenue sur HydroFlex !');
   }catch(e){hideLoader();toast('❌ Erreur init : '+e.message,'error');console.error(e);}
@@ -1641,8 +1690,10 @@ function setupUI(){
   badge.textContent=name;badge.style.background=bg;badge.style.color=color;
   const tb=document.getElementById('topbar-badge');
   tb.textContent=name;tb.style.background=bg;tb.style.color=color;
-  document.getElementById('sidebar-user-info').textContent=isAdmin?'👑 Administrateur':'🏭 '+s.name;
+  const roleLabel=isAdmin?'👑 Administrateur':isResponsable?'🔑 Responsable — '+s.name:'🏭 '+s.name;
+  document.getElementById('sidebar-user-info').textContent=roleLabel;
   document.getElementById('admin-nav-section').style.display=isAdmin?'':'none';
+  document.getElementById('resp-nav-section').style.display=isResponsable?'':'none';
   document.documentElement.style.setProperty('--site-color',color);
   // Destinations transfert
   const trDest=document.getElementById('tr-dest');
@@ -1744,7 +1795,7 @@ async function refreshAll(){
 }
 
 // ── NAVIGATION ──
-const pageNames={'dashboard':'Dashboard','ordres':'Ordres de Fabrication','nouvel-ordre':'Nouvel Ordre','clients':'Clients','operateurs':'Opérateurs','stock':'Stock','transfert':'Transfert Inter-Sites','inventaire':'Inventaire','historique':'Historique','vue-globale':'Vue Globale','valider-ordres':'Valider Ordres','valider-transferts':'Valider Transferts','journal':"Journal d'Activité",'config':'Configuration'};
+const pageNames={'dashboard':'Dashboard','ordres':'Ordres de Fabrication','nouvel-ordre':'Nouvel Ordre','clients':'Clients','operateurs':'Opérateurs','stock':'Stock','transfert':'Transfert Inter-Sites','inventaire':'Inventaire','historique':'Historique','aide':'Guide d\'utilisation','vue-globale':'Vue Globale','valider-ordres':'Valider Ordres','valider-transferts':'Valider Transferts','journal':"Journal d'Activité",'config':'Configuration'};
 
 function showPage(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1783,7 +1834,7 @@ function renderCurrentPage(){
 }
 
 function renderPage(p){
-  const map={dashboard:renderDashboard,ordres:renderOrdres,'nouvel-ordre':prepNouvel,clients:renderClients,operateurs:renderOperateurs,stock:renderStock,transfert:renderTransfert,inventaire:renderInventaire,historique:renderHistorique,'vue-globale':renderVueGlobale,'valider-ordres':renderValiderOrdres,'valider-transferts':renderValiderTransferts,journal:renderJournal,config:renderConfig};
+  const map={dashboard:renderDashboard,ordres:renderOrdres,'nouvel-ordre':prepNouvel,clients:renderClients,operateurs:renderOperateurs,stock:renderStock,transfert:renderTransfert,inventaire:renderInventaire,historique:renderHistorique,aide:renderAide,'vue-globale':renderVueGlobale,'valider-ordres':renderValiderOrdres,'valider-transferts':renderValiderTransferts,journal:renderJournal,config:renderConfig};
   // Ne pas appeler prepNouvel si on est en mode modification
   if(p==='nouvel-ordre'&&currentEditId) return;
   if(map[p]) map[p]();
@@ -3602,6 +3653,285 @@ async function imprimerRapportInv(invId){
   setTimeout(()=>imprimerInventaire(),500);
 }
 
+// ── GUIDE D'UTILISATION ──
+const AIDE_SECTIONS=[
+{titre:'🚀 Démarrage & Connexion',contenu:`
+<div class="aide-section">
+  <h2>Connexion à l'application</h2>
+  <p>HydroFlex s'ouvre dans le navigateur. Trois étapes de connexion :</p>
+  <ol>
+    <li><strong>URL Supabase</strong> — l'adresse de votre base de données (fournie par l'administrateur)</li>
+    <li><strong>Clé API</strong> — la clé d'accès (fournie par l'administrateur)</li>
+    <li><strong>Choix du site</strong> — Zone 3, Yopougon ou San Pedro</li>
+    <li><strong>Mot de passe du site</strong> — propre à chaque atelier</li>
+  </ol>
+  <div class="aide-tip">💡 L'administrateur a accès à tous les sites et toutes les fonctions de gestion.</div>
+
+  <h2>Interface principale</h2>
+  <p>Le menu de gauche donne accès à tous les modules :</p>
+  <ul>
+    <li><strong>Dashboard</strong> — vue d'ensemble : ordres urgents, stock critique, transferts en attente</li>
+    <li><strong>Ordres de Fab.</strong> — liste et suivi des ordres de fabrication</li>
+    <li><strong>Nouvel Ordre</strong> — créer un nouveau flexible</li>
+    <li><strong>Clients / Opérateurs / Stock</strong> — gestion des référentiels</li>
+    <li><strong>Transfert Inter-Sites</strong> — déplacer du stock entre ateliers</li>
+    <li><strong>Inventaire</strong> — comptage et régularisation du stock</li>
+    <li><strong>Historique</strong> — ordres clôturés</li>
+  </ul>
+  <div class="aide-tip">💡 Le tableau de bord se rafraîchit automatiquement toutes les 30 secondes.</div>
+</div>
+`},
+{titre:'📋 Ordres de Fabrication',contenu:`
+<div class="aide-section">
+  <h2>Créer un nouvel ordre</h2>
+  <p>Cliquez sur <strong>+ Nouvel Ordre</strong>. Le formulaire comporte 5 onglets :</p>
+
+  <h3>1️⃣ Onglet Client</h3>
+  <ul>
+    <li>Sélectionnez le client dans la liste déroulante</li>
+    <li>Les coordonnées se remplissent automatiquement</li>
+    <li>Ajoutez des notes client si nécessaire</li>
+  </ul>
+
+  <h3>2️⃣ Onglet OT (Ordre de Travail)</h3>
+  <ul>
+    <li><strong>Notification client</strong> : température, application (ENGIN/VÉHICULE...), fluide, pression, reprise (Neuf/Reprise)</li>
+    <li><strong>Marquage</strong> : OUI ou NON — si OUI, précisez le libellé du marquage</li>
+    <li><strong>Opérateur</strong> : sélectionnez l'opérateur assigné</li>
+    <li><strong>Quantité et délai</strong> souhaité</li>
+    <li><strong>Facturation</strong> : N° Proforma, N° BL Informatique/Manuel, prix, remise, TVA</li>
+  </ul>
+
+  <h3>3️⃣ Onglet Identification</h3>
+  <ul>
+    <li>Utilisez le <strong>champ 🔍 Filtrer</strong> pour trouver rapidement une référence</li>
+    <li>Sélectionnez les composants : <strong>Côté A</strong> (Jupe → Embout → Raccord) et <strong>Côté B</strong></li>
+    <li>Au centre : référence du <strong>tuyau flexible</strong>, DN, longueur (en mètres), pression, température</li>
+    <li>Le schéma en haut se met à jour visuellement</li>
+  </ul>
+  <div class="aide-tip">💡 Ordre de saisie : JUPE → EMBOUT → RACCORD (du tuyau vers l'extérieur)</div>
+
+  <h3>4️⃣ Onglet Vérification</h3>
+  <ul>
+    <li><strong>Pas de vérification</strong> — aucun test requis</li>
+    <li><strong>Banc d'épreuves</strong> — renseignez pression de rupture et pression d'essai</li>
+    <li><strong>VERITAS</strong> — certification, indiquez Conforme ou Non-Conforme</li>
+  </ul>
+
+  <h3>5️⃣ Onglet Récapitulatif</h3>
+  <p>Vérifiez toutes les informations avant de cliquer <strong>✅ Créer l'ordre</strong>.</p>
+
+  <h2>Suivi d'un ordre</h2>
+  <p>Dans la liste, cliquez sur 👁️ pour ouvrir le détail. Vous pouvez :</p>
+  <ul>
+    <li><strong>✅ Valider étape</strong> — faire avancer la fabrication (si l'ordre est validé par l'admin)</li>
+    <li><strong>✏️ Modifier</strong> — corriger des erreurs ou ajouter des infos manquantes</li>
+    <li><strong>🖨️ Fiche de travail</strong> — imprimer l'Ordre de Fabrication A4</li>
+    <li><strong>🗑️ Supprimer</strong> — effacer l'ordre définitivement</li>
+  </ul>
+
+  <h2>Modification d'un ordre</h2>
+  <p>Cliquez sur ✏️ Modifier dans le détail de l'ordre. Le formulaire se pré-remplit avec les données existantes.</p>
+  <div class="aide-warning">⚠️ Si vous modifiez des données techniques (client, composants, longueur, pression), l'ordre repassera en <strong>«À valider»</strong> — l'administrateur devra re-valider. Les données administratives (N° BL, Proforma, notes) ne déclenchent pas de re-validation.</div>
+
+  <h2>Les 3 onglets de la liste</h2>
+  <ul>
+    <li><strong>⚙️ En cours</strong> — ordres actifs à traiter</li>
+    <li><strong>✅ Terminés</strong> — ordres clôturés avec dates de début et fin</li>
+    <li><strong>📋 Tous</strong> — vue complète</li>
+  </ul>
+</div>
+`},
+{titre:'📦 Gestion du Stock',contenu:`
+<div class="aide-section">
+  <h2>Consulter le stock</h2>
+  <p>Module <strong>Stock</strong> → onglet <strong>📦 Liste stock</strong>. Filtres disponibles : recherche texte, catégorie. Les articles en rouge sont sous le seuil minimum.</p>
+
+  <h2>Ajouter un article manuellement</h2>
+  <ol>
+    <li>Cliquez <strong>+ Ajouter un composant</strong></li>
+    <li>Renseignez : référence, désignation, catégorie, stock initial, seuil minimum, unité</li>
+    <li>L'article est automatiquement créé sur les 3 sites (avec stock 0 pour les autres)</li>
+  </ol>
+
+  <h2>Importer depuis un fichier CSV</h2>
+  <p>Onglet <strong>📥 Importer CSV</strong> :</p>
+  <ol>
+    <li>Glissez votre fichier CSV (depuis Excel : <em>Fichier → Enregistrer sous → CSV UTF-8 délimité par des points-virgules</em>)</li>
+    <li>L'app détecte automatiquement les colonnes</li>
+    <li>Utilisez le filtre <strong>📂 Par catégorie</strong> pour importer en plusieurs fois</li>
+    <li>Vérifiez l'aperçu puis cliquez <strong>✅ Importer la sélection</strong></li>
+  </ol>
+  <div class="aide-tip">💡 Colonnes reconnues : code/reference, designation, categorie, stock, stock min, unite, reference fournis</div>
+  <div class="aide-warning">⚠️ Les nombres décimaux doivent utiliser la virgule : <code>0,35</code> pour 0.35m</div>
+
+  <h2>Format CSV recommandé</h2>
+  <pre style="background:var(--steel);padding:10px;border-radius:6px;font-size:11px;overflow-x:auto">code;reference;designation;categorie;stock;stock min;unite
+1060600;1060600;SX 06 JUPE;Jupe;1465;100;pcs
+TA206;TA206;FLEXIBLE-2SC-06;Tuyau;19;5;m</pre>
+
+  <h2>Fiche article</h2>
+  <p>Cliquez sur 📄 dans la liste → affiche les infos, le stock par site, les ordres liés, les transferts et l'historique d'inventaire. Bouton <strong>✏️ Modifier</strong> pour mettre à jour la désignation, catégorie, seuil ou unité.</p>
+</div>
+`},
+{titre:'👤 Clients & Opérateurs',contenu:`
+<div class="aide-section">
+  <h2>Gestion des clients</h2>
+  <p>Module <strong>Clients</strong> :</p>
+  <ul>
+    <li><strong>Ajouter</strong> : nom, NCC (Numéro de Compte Contribuable), contact, téléphone, email, adresse, ville</li>
+    <li><strong>Modifier</strong> : cliquez ✏️ sur le client</li>
+    <li><strong>Importer CSV</strong> : colonnes <code>nom;ncc;contact;telephone;email;adresse;ville;code_postal</code></li>
+  </ul>
+  <div class="aide-tip">💡 Le NCC s'affiche automatiquement sur la fiche Ordre de Fabrication à l'impression.</div>
+
+  <h2>Import CSV Clients</h2>
+  <pre style="background:var(--steel);padding:10px;border-radius:6px;font-size:11px;overflow-x:auto">nom;ncc;contact;telephone;email;adresse;ville;code_postal
+KABALANE SA;CI-2023-112233;Paul;0102030405;paul@ka.ci;Zone 3;Abidjan;</pre>
+
+  <h2>Gestion des opérateurs</h2>
+  <p>Module <strong>Opérateurs</strong> :</p>
+  <ul>
+    <li>Chaque opérateur est rattaché à un site</li>
+    <li>Statistiques disponibles sur le Dashboard : ordres en cours, terminés, temps moyen</li>
+    <li>Un opérateur inactif n'apparaît plus dans les listes de sélection</li>
+  </ul>
+</div>
+`},
+{titre:'🔄 Transferts Inter-Sites',contenu:`
+<div class="aide-section">
+  <h2>Créer un transfert</h2>
+  <ol>
+    <li>Module <strong>Transfert Inter-Sites</strong></li>
+    <li>Sélectionnez l'article, la quantité, et le site destinataire</li>
+    <li>Cliquez <strong>Demander le transfert</strong> — un Bon de Transfert (BT) est généré</li>
+    <li>L'administrateur doit valider le transfert</li>
+  </ol>
+  <div class="aide-tip">💡 Vous pouvez imprimer le Bon de Transfert avant validation.</div>
+
+  <h2>Validation par l'admin</h2>
+  <ol>
+    <li>Menu Admin → <strong>Valider Transferts</strong></li>
+    <li>Vérifiez les détails et cliquez ✅ Valider</li>
+    <li>Les stocks des deux sites sont mis à jour automatiquement : le site source est débité, le site destination est crédité</li>
+  </ol>
+  <div class="aide-warning">⚠️ Un transfert refusé ne modifie aucun stock.</div>
+</div>
+`},
+{titre:'📊 Inventaire',contenu:`
+<div class="aide-section">
+  <h2>Lancer un inventaire</h2>
+  <ol>
+    <li>Module <strong>Inventaire</strong> → <strong>+ Nouvel inventaire</strong></li>
+    <li>Choisissez le mode :</li>
+  </ol>
+
+  <h3>📋 Mode Complet</h3>
+  <p>Tous les articles du site sont listés automatiquement. Comptez tout.</p>
+
+  <h3>🗂️ Mode Par catégorie</h3>
+  <p>Cochez les catégories à inventorier : Jupes ☑️ Raccords ☑️ etc.</p>
+
+  <h3>✅ Mode Sélectif</h3>
+  <p>Choisissez article par article ceux à compter. Utile pour un contrôle spot ou après une livraison.</p>
+
+  <h2>Saisie des quantités</h2>
+  <ul>
+    <li>Tapez la quantité réellement comptée dans le champ de chaque article</li>
+    <li>L'écart se calcule automatiquement (vert = OK, rouge = manque, bleu = surplus)</li>
+    <li>Ajoutez un commentaire par ligne si nécessaire</li>
+    <li>La sauvegarde est automatique à chaque saisie</li>
+  </ul>
+  <div class="aide-tip">💡 Vous pouvez quitter et reprendre un inventaire en cours — les données sont sauvegardées.</div>
+
+  <h2>Clôture</h2>
+  <p>Cliquez <strong>✅ Clôturer & Mettre à jour le stock</strong> :</p>
+  <ul>
+    <li>Les quantités comptées remplacent les quantités système</li>
+    <li>L'inventaire est archivé et consultable</li>
+    <li>Un rapport PDF peut être imprimé</li>
+  </ul>
+  <div class="aide-warning">⚠️ Une fois clôturé, l'inventaire ne peut plus être modifié.</div>
+</div>
+`},
+{titre:'🛡️ Administration',contenu:`
+<div class="aide-section">
+  <h2>Validation des ordres</h2>
+  <p>Menu Admin → <strong>Valider Ordres</strong> (badge rouge = ordres en attente) :</p>
+  <ul>
+    <li>Vérifiez les détails techniques de chaque ordre</li>
+    <li><strong>✅ Valider</strong> — l'opérateur peut commencer la fabrication</li>
+    <li><strong>❌ Refuser</strong> — indiquez un motif, l'opérateur en est informé sur le Dashboard</li>
+  </ul>
+  <div class="aide-tip">💡 Un ordre non validé ne peut pas être mis en fabrication ni imprimé.</div>
+
+  <h2>Journal d'activité</h2>
+  <p>Trace toutes les actions : création, modification, suppression, transferts, inventaires. Pour les modifications d'ordres, le détail exact des champs changés est enregistré (avant/après).</p>
+
+  <h2>Vue globale</h2>
+  <p>Vue consolidée de tous les sites : ordres, stocks critiques, activité par opérateur.</p>
+
+  <h2>Configuration</h2>
+  <ul>
+    <li><strong>Modifier les mots de passe</strong> par site</li>
+    <li><strong>Activer/désactiver</strong> le site réservé</li>
+    <li><strong>Effacer les données de test</strong> (partiel ou total)</li>
+  </ul>
+
+  <h2>Flux de validation d'un ordre</h2>
+  <pre style="background:var(--steel);padding:12px;border-radius:6px;font-size:12px;line-height:1.8">
+  ⏳ À valider
+      ↓ Admin valide
+  ✅ Validé
+      ↓ Opérateur démarre (étape 1)
+  🔧 En fabrication
+      ↓ Étapes complétées
+  ✅ Terminé</pre>
+  <p>À chaque étape, la date et l'heure sont enregistrées pour le suivi.</p>
+</div>
+`}];
+
+let aideTabActif=0;
+
+function renderAide(){
+  switchAideTab(0);
+}
+
+function switchAideTab(idx){
+  aideTabActif=idx;
+  const tabs=document.querySelectorAll('#aide-tabs .tab');
+  tabs.forEach((t,i)=>t.classList.toggle('active',i===idx));
+  document.getElementById('aide-content').innerHTML=AIDE_SECTIONS[idx].contenu+`
+    <style>
+      .aide-section h2{font-size:16px;font-weight:800;color:var(--accent);margin:20px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+      .aide-section h3{font-size:13px;font-weight:700;color:var(--cyan);margin:14px 0 6px;}
+      .aide-section p{font-size:13px;color:var(--text);line-height:1.7;margin-bottom:8px;}
+      .aide-section ul,.aide-section ol{font-size:13px;color:var(--text);line-height:1.9;margin:6px 0 10px 20px;}
+      .aide-section li{margin-bottom:2px;}
+      .aide-section pre{font-size:11px;color:var(--text);line-height:1.6;white-space:pre-wrap;word-break:break-all;}
+      .aide-section code{background:var(--steel);padding:1px 6px;border-radius:3px;font-size:12px;color:var(--cyan);}
+      .aide-tip{background:rgba(0,201,212,0.08);border-left:3px solid var(--cyan);padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;color:var(--text);margin:10px 0;}
+      .aide-warning{background:rgba(245,166,35,0.08);border-left:3px solid var(--accent);padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;color:var(--text);margin:10px 0;}
+    </style>`;
+}
+
+function searchAide(){
+  const q=(document.getElementById('search-aide')||{value:''}).value.toLowerCase().trim();
+  if(!q){switchAideTab(aideTabActif);return;}
+  const results=AIDE_SECTIONS.map((s,i)=>{
+    const txt=s.contenu.replace(/<[^>]+>/g,' ').toLowerCase();
+    if(txt.includes(q))return`<div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--accent);font-weight:700;margin-bottom:4px">${s.titre}</div>
+      <div style="font-size:12px;color:var(--text-muted)">${txt.split(q)[0].slice(-80)}<mark style="background:rgba(245,166,35,0.3);color:var(--text);padding:0 2px">${q}</mark>${txt.split(q)[1].slice(0,80)}</div>
+      <button class="btn btn-secondary btn-xs" style="margin-top:6px" onclick="switchAideTab(${i});document.getElementById('search-aide').value=''">Voir →</button>
+    </div>`;
+    return null;
+  }).filter(Boolean);
+  document.getElementById('aide-content').innerHTML=results.length
+    ?`<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">${results.length} résultat(s) pour "<strong>${q}</strong>"</div>`+results.join('')
+    :`<div style="text-align:center;padding:40px;color:var(--text-muted)">Aucun résultat pour "${q}"</div>`;
+}
+
 // ── HISTORIQUE ──
 function renderHistorique(){
   const search=(document.getElementById('search-histo')||{value:''}).value.toLowerCase();
@@ -3643,8 +3973,9 @@ function renderVueGlobale(){
 
 // ── VALIDER ORDRES ADMIN ──
 function renderValiderOrdres(){
-  if(!isAdmin)return;
-  const att=ordres.filter(o=>o.validationStatut==='a_valider');
+  if(!isAdmin&&!isResponsable)return;
+  // Le responsable voit uniquement les ordres de son site
+  const att=ordres.filter(o=>o.validationStatut==='a_valider'&&(isAdmin||o.site===currentSite));
   const today=new Date().toDateString();
   document.getElementById('kpi-val-attente').textContent=att.length;
   document.getElementById('kpi-val-ok').textContent=ordres.filter(o=>o.validationStatut==='valide'&&o.updatedAt&&new Date(o.updatedAt).toDateString()===today).length;
@@ -3685,12 +4016,15 @@ function renderValiderOrdres(){
 
 async function validerOrdre(id,ref){
   if(!confirm('Valider l\'ordre '+ref+' ? L\'opérateur pourra démarrer la fabrication.'))return;
+  const validePar=isAdmin?'Administrateur':('Responsable '+SITES[currentSite]?.name);
   try{
-    const {error}=await sb.from('ordres_fabrication').update({validation_statut:'valide',validation_par:'Administrateur',updated_at:new Date().toISOString()}).eq('id',id);
+    const {error}=await sb.from('ordres_fabrication').update({validation_statut:'valide',validation_par:validePar,updated_at:new Date().toISOString()}).eq('id',id);
     if(error) throw error;
-    await logAction('ORDRE_VALIDE','Ordre '+ref+' validé par Admin');
+    await logAction('ORDRE_VALIDE','Ordre '+ref+' validé par '+validePar);
     toast('✅ Ordre '+ref+' validé !');
-    await loadOrdres();renderValiderOrdres();updateOrdresBadge();
+    await loadOrdres();renderValiderOrdres();
+    if(isAdmin)updateOrdresBadge();
+    if(isResponsable)updateOrdresBadgeResp();
   }catch(e){toast('❌ Erreur : '+e.message,'error');}
 }
 
@@ -3706,8 +4040,9 @@ function openRefusModal(id,ref){
 async function confirmerRefus(){
   const motif=document.getElementById('refus-motif').value.trim();
   if(!motif){toast('Le motif de refus est obligatoire','error');return;}
+  const validePar=isAdmin?'Administrateur':('Responsable '+SITES[currentSite]?.name);
   try{
-    const {error}=await sb.from('ordres_fabrication').update({validation_statut:'refuse',validation_par:'Administrateur',validation_motif:motif,updated_at:new Date().toISOString()}).eq('id',refusOrdreId);
+    const {error}=await sb.from('ordres_fabrication').update({validation_statut:'refuse',validation_par:validePar,validation_motif:motif,updated_at:new Date().toISOString()}).eq('id',refusOrdreId);
     if(error) throw error;
     await logAction('ORDRE_REFUSE','Ordre '+refusOrdreRef+' refusé — '+motif);
     toast('❌ Ordre '+refusOrdreRef+' refusé');
@@ -3719,6 +4054,12 @@ async function confirmerRefus(){
 function updateOrdresBadge(){
   const count=ordres.filter(o=>o.validationStatut==='a_valider').length;
   const badge=document.getElementById('badge-ordres-count');
+  if(badge){badge.textContent=count;badge.style.display=count>0?'':'none';}
+}
+
+function updateOrdresBadgeResp(){
+  const count=ordres.filter(o=>o.validationStatut==='a_valider'&&o.site===currentSite).length;
+  const badge=document.getElementById('badge-ordres-count-resp');
   if(badge){badge.textContent=count;badge.style.display=count>0?'':'none';}
 }
 
