@@ -2497,13 +2497,36 @@ async function creerOrdre(){
         .filter(([,[ ,av,ap]])=>String(av||'')!==String(ap||''))
         .map(([label,[,av,ap]])=>`${label}: "${av||'—'}" → "${ap||'—'}"`)
         .join(' | ');
-      const {error}=await sb.from('ordres_fabrication').update({...row,
-        updated_at:new Date().toISOString()
-      }).eq('id',currentEditId);
+
+      // Re-validation admin seulement si données techniques changent
+      const champsTechniques=['client','operateur','pression','longueur','type_verification'];
+      const composants=['client','raccord_a_ref','embout_a_ref','jupe_a_ref','raccord_b_ref','embout_b_ref','jupe_b_ref','ref_flexible'];
+      const techniqueChangee=
+        String(ancien.client||'')!==String(row.client||'')||
+        String(ancien.operateur||'')!==String(row.operateur||'')||
+        String(ancien.pression||'')!==String(row.pression||'')||
+        String(ancien.longueur||'')!==String(row.longueur||'')||
+        String(ancien.typeVerification||'')!==String(row.type_verification||'')||
+        String(ancien.jupeA||'')!==String(row.jupe_a_ref||'')||
+        String(ancien.emboutA||'')!==String(row.embout_a_ref||'')||
+        String(ancien.raccordA||'')!==String(row.raccord_a_ref||'')||
+        String(ancien.jupeB||'')!==String(row.jupe_b_ref||'')||
+        String(ancien.emboutB||'')!==String(row.embout_b_ref||'')||
+        String(ancien.raccordB||'')!==String(row.raccord_b_ref||'')||
+        String(ancien.refFlex||'')!==String(row.ref_flexible||'');
+
+      const updateData={...row, updated_at:new Date().toISOString()};
+      if(techniqueChangee && ancien.validationStatut==='valide'){
+        updateData.validation_statut='a_valider';
+        updateData.validation_par=null;
+      }
+
+      const {error}=await sb.from('ordres_fabrication').update(updateData).eq('id',currentEditId);
       if(error)throw error;
-      await logAction('ORDRE_MODIFIE',`Ordre ${row.reference} modifié${modifs?' — '+modifs:' (aucun changement)'}`);
+      const revalMsg=techniqueChangee&&ancien.validationStatut==='valide'?' ⚠️ Re-validation admin requise':'';
+      await logAction('ORDRE_MODIFIE',`Ordre ${row.reference} modifié${modifs?' — '+modifs:' (aucun changement)'}${revalMsg}`);
       await loadOrdres();renderDashboard();
-      toast('✅ Ordre '+row.reference+' modifié !');
+      toast('✅ Ordre '+row.reference+' modifié !'+revalMsg);
       currentEditId=null;
       const btnCreer=document.getElementById('btn-creer-ordre');
       if(btnCreer){btnCreer.textContent="✅ Créer l'ordre";btnCreer.style.background='';}
