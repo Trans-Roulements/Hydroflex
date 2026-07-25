@@ -389,7 +389,7 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
             <div class="table-title" id="ord-table-title">📋 Ordres de Fabrication</div>
             <button class="btn btn-primary btn-sm" onclick="showPage('nouvel-ordre')">+ Nouvel Ordre</button>
           </div>
-          <table><thead><tr><th>Référence</th><th>Client</th><th>DN</th><th>Long.</th><th>Opérateur</th><th>Avancement</th><th>Statut</th><th>Date fin</th><th></th></tr></thead>
+          <table><thead><tr><th>Référence</th><th>Client</th><th>DN</th><th>Long.</th><th>Opérateur</th><th>Avancement</th><th>Statut</th><th>Date début</th><th>Date fin</th><th></th></tr></thead>
           <tbody id="ord-tbody"></tbody></table>
         </div>
       </div>
@@ -1917,6 +1917,7 @@ function renderOrdres(){
       const siteBadge=isAdmin?`<span style="background:${SITES[o.site]?.bg||''};color:${SITES[o.site]?.color||'var(--text)'};padding:1px 6px;border-radius:10px;font-size:10px;margin-right:4px">${SITES[o.site]?.name||o.site}</span>`:'';
       const valSt=o.validationStatut||'a_valider';
       const locked=!isTermine&&(valSt==='a_valider'||valSt==='refuse');
+      const dateDebutStr=o.heureDebut?new Date(o.heureDebut).toLocaleDateString('fr-FR'):'—';
       const dateFinStr=o.updatedAt&&isTermine?new Date(o.updatedAt).toLocaleDateString('fr-FR'):'—';
       return`<tr style="${locked?'opacity:0.75':''}${isTermine?';background:rgba(46,204,113,0.03)':''}">
         <td><code>${siteBadge}${o.ref}</code></td>
@@ -1926,6 +1927,7 @@ function renderOrdres(){
         <td>${o.operateur||'—'}</td>
         <td><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:4px;background:var(--steel-light);border-radius:2px"><div style="width:${prog}%;height:100%;background:${isTermine?'var(--success)':'var(--accent)'};border-radius:2px"></div></div><span style="font-size:11px;color:var(--text-muted)">${isTermine?'✅':'${o.etape}/${ETAPES.length}'}</span></div></td>
         <td>${isTermine?'<span class="badge badge-done">✅ Terminé</span>':`<span class="badge ${vB[valSt]||'badge-wait'}">${vL[valSt]||valSt}</span>${valSt==='valide'?'<br><span class="badge '+sB[o.statut]+' " style="font-size:10px">'+sL[o.statut]+'</span>':''}`}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${dateDebutStr}</td>
         <td style="font-size:12px;color:var(--text-muted)">${dateFinStr}</td>
         <td><button class="icon-btn" onclick="openOrdre('${o.id}')">👁️</button></td>
       </tr>`;
