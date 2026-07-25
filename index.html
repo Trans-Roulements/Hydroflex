@@ -1387,9 +1387,20 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
 </div>
 
 <div class="modal-overlay" id="modal-bl">
-  <div class="modal" style="max-width:400px">
+  <div class="modal" style="max-width:440px">
     <div class="modal-title">📦 N° Bon de Livraison</div>
-    <div class="form-group"><label>N° BL</label><input type="text" id="bl-input" placeholder="BL-2024-001"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label>N° BL Informatique</label>
+        <input type="text" id="bl-input-info" placeholder="BL-2026-001" style="font-family:'Barlow',sans-serif">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Généré par le système</div>
+      </div>
+      <div class="form-group">
+        <label>N° BL Manuel</label>
+        <input type="text" id="bl-input-manuel" placeholder="ex: 00032" style="font-family:'Barlow',sans-serif">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Saisi manuellement</div>
+      </div>
+    </div>
     <div class="form-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-bl')">Passer</button>
       <button class="btn btn-primary" onclick="saveBL()">✅ Enregistrer</button>
@@ -1659,7 +1670,7 @@ function mapOrdre(o){
     emboutB:o.embout_b_ref,emboutBFour:o.embout_b_ref_four,emboutBType:o.embout_b_type,
     raccordB:o.raccord_b_ref,raccordBFour:o.raccord_b_ref_four,raccordBType:o.raccord_b_type,raccordBTaille:o.raccord_b_taille,
     qty:o.quantite||1,delai:o.delai_souhaite,statut:o.statut||'normal',etape:o.etape_actuelle||0,
-    notes:o.notes,numBl:o.num_bl,
+    notes:o.notes,numBl:o.num_bl,numBlManuel:o.num_bl_manuel,
     typeVerification:o.type_verification||'aucune',
     pressionRupture:o.pression_rupture,pressionEssai:o.pression_essai,conformite:o.conformite,
     application:o.application,fluide:o.fluide,reprise:o.reprise||'Neuf',
@@ -1985,7 +1996,8 @@ async function avancerEtape(){
     if(nextEtape>=ETAPES.length){
       closeModal('modal-ordre');
       blOrdreId=currentOrdre.id;
-      document.getElementById('bl-input').value='';
+      document.getElementById('bl-input-info').value=currentOrdre.numBl||'';
+      document.getElementById('bl-input-manuel').value=currentOrdre.numBlManuel||'';
       document.getElementById('modal-bl').classList.add('open');
     }
     await logAction('ORDRE_ETAPE',`Ordre ${currentOrdre.ref} → ${ETAPES[nextEtape]||'Terminé'}`);
@@ -2008,9 +2020,13 @@ async function supprimerOrdre(){
 }
 
 async function saveBL(){
-  const bl=document.getElementById('bl-input').value.trim();
-  if(blOrdreId&&bl){
-    await sb.from('ordres_fabrication').update({num_bl:bl}).eq('id',blOrdreId);
+  const blInfo=document.getElementById('bl-input-info').value.trim();
+  const blManuel=document.getElementById('bl-input-manuel').value.trim();
+  if(blOrdreId&&(blInfo||blManuel)){
+    await sb.from('ordres_fabrication').update({
+      num_bl:blInfo||null,
+      num_bl_manuel:blManuel||null
+    }).eq('id',blOrdreId);
     await loadOrdres();
     toast('✅ N° BL : '+bl);
   }
@@ -2201,7 +2217,7 @@ function imprimerFiche(){
         <div class="fact-lbl">N° du Bon de Livraison</div>
         <div class="fact-bl">
           <div class="fact-bl-row"><span style="color:#888;min-width:100px">INFORMATIQUE :</span><strong>${o.numBl||'—'}</strong></div>
-          <div class="fact-bl-row"><span style="color:#888;min-width:100px">MANUEL :</span></div>
+          <div class="fact-bl-row"><span style="color:#888;min-width:100px">MANUEL :</span><strong>${o.numBlManuel||'&nbsp;'}</strong></div>
         </div>
       </div>
     </div>
