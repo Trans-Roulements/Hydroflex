@@ -788,6 +788,10 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
                   <!-- FACTURATION -->
                   <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">💰 Facturation</div>
                   <div class="form-group"><label>N° Proforma</label><input type="text" id="new-num-proforma" placeholder="ex: 132084"></div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <div class="form-group"><label>N° BL Informatique</label><input type="text" id="new-num-bl-info" placeholder="BL-2026-001"></div>
+                    <div class="form-group"><label>N° BL Manuel</label><input type="text" id="new-num-bl-manuel" placeholder="ex: 00032"></div>
+                  </div>
                   <div class="form-group"><label>Prix unitaire (FCFA)</label><input type="number" id="new-prix-unit" placeholder="0" oninput="calcMontant()"></div>
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                     <div class="form-group"><label>% Remise</label><input type="number" id="new-remise" placeholder="0" min="0" max="100" oninput="calcMontant()"></div>
@@ -2285,7 +2289,7 @@ async function prepNouvel(){
   currentVerif='aucune';currentConformite='';currentMarquage='NON';
   onSelectVerif('aucune');setMarquage('NON');
   const mEl=document.getElementById('new-marquage-texte');if(mEl)mEl.value='';
-  ['new-temp-ot','new-num-proforma','new-prix-unit','new-remise'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['new-temp-ot','new-num-proforma','new-num-bl-info','new-num-bl-manuel','new-prix-unit','new-remise'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const appEl=document.getElementById('new-application');if(appEl)appEl.value='';
   const fluEl=document.getElementById('new-fluide');if(fluEl)fluEl.value='';
   const repEl=document.getElementById('new-reprise');if(repEl)repEl.value='Neuf';
@@ -2369,6 +2373,8 @@ async function modifierOrdre(){
     const repEl=document.getElementById('new-reprise');if(repEl)repEl.value=o.reprise||'Neuf';
     set('new-qty',o.qty||1);
     set('new-num-proforma',o.numProforma);
+    set('new-num-bl-info',o.numBl);
+    set('new-num-bl-manuel',o.numBlManuel);
     set('new-notes',o.notes);
     const tvaEl=document.getElementById('new-tva');if(tvaEl)tvaEl.checked=!!o.tva;
     setMarquage(o.marquage||'NON');
@@ -2461,6 +2467,8 @@ async function creerOrdre(){
     marquage:currentMarquage||'NON',
     marquage_texte:currentMarquage==='OUI'?document.getElementById('new-marquage-texte')?.value||null:null,
     num_proforma:document.getElementById('new-num-proforma')?.value||null,
+    num_bl:document.getElementById('new-num-bl-info')?.value||null,
+    num_bl_manuel:document.getElementById('new-num-bl-manuel')?.value||null,
     type_verification:currentVerif||'aucune',
     pression_rupture:document.getElementById('verif-pression-rupture')?.value?parseFloat(document.getElementById('verif-pression-rupture').value):null,
     pression_essai:document.getElementById('verif-pression-essai')?.value?parseFloat(document.getElementById('verif-pression-essai').value):null,
@@ -2469,17 +2477,34 @@ async function creerOrdre(){
   };
   try{
     if(currentEditId){
-      // MODE MODIFICATION
+      // MODE MODIFICATION — enregistrer les changements dans le journal
+      const ancien=currentOrdre;
+      const champs={
+        'Client':['client',ancien.client,row.client],
+        'Opérateur':['operateur',ancien.operateur,row.operateur],
+        'Application':['application',ancien.application,row.application],
+        'Fluide':['fluide',ancien.fluide,row.fluide],
+        'Pression':['pression',ancien.pression,row.pression],
+        'Longueur':['longueur',ancien.longueur,row.longueur],
+        'Marquage':['marquage',ancien.marquage,row.marquage],
+        'Vérification':['type_verification',ancien.typeVerification,row.type_verification],
+        'N° Proforma':['num_proforma',ancien.numProforma,row.num_proforma],
+        'N° BL Info':['num_bl',ancien.numBl,row.num_bl],
+        'N° BL Manuel':['num_bl_manuel',ancien.numBlManuel,row.num_bl_manuel],
+        'Notes':['notes',ancien.notes,row.notes],
+      };
+      const modifs=Object.entries(champs)
+        .filter(([,[ ,av,ap]])=>String(av||'')!==String(ap||''))
+        .map(([label,[,av,ap]])=>`${label}: "${av||'—'}" → "${ap||'—'}"`)
+        .join(' | ');
       const {error}=await sb.from('ordres_fabrication').update({...row,
-        validation_statut:currentOrdre?.validationStatut==='valide'?'a_valider':undefined,
         updated_at:new Date().toISOString()
       }).eq('id',currentEditId);
       if(error)throw error;
-      await logAction('ORDRE_MODIFIE',`Ordre ${row.reference} modifié`);
+      await logAction('ORDRE_MODIFIE',`Ordre ${row.reference} modifié${modifs?' — '+modifs:' (aucun changement)'}`);
       await loadOrdres();renderDashboard();
       toast('✅ Ordre '+row.reference+' modifié !');
       currentEditId=null;
-      // Réinitialiser le bouton
       const btnCreer=document.getElementById('btn-creer-ordre');
       if(btnCreer){btnCreer.textContent="✅ Créer l'ordre";btnCreer.style.background='';}
       showPage('ordres');
@@ -3735,8 +3760,8 @@ function renderJournal(){
     if(search&&!(j.action||'').toLowerCase().includes(search)&&!(j.detail||'').toLowerCase().includes(search))return false;
     return true;
   });
-  const iconMap={'ORDRE_CREE':'📋','ORDRE_ETAPE':'▶️','ORDRE_SUPPRIME':'🗑️','STOCK_AJOUTE':'📦','STOCK_MODIFIE':'✏️','TRANSFERT_DEMANDE':'🔄','TRANSFERT_VALIDE':'✅','TRANSFERT_REFUSE':'❌','CLIENT_AJOUTE':'👤','OP_AJOUTE':'👷','CONFIG_MDP':'🔑'};
-  const colorMap={'ORDRE_CREE':'var(--accent)','TRANSFERT_VALIDE':'var(--success)','TRANSFERT_REFUSE':'var(--danger)','STOCK_AJOUTE':'var(--success)'};
+  const iconMap={'ORDRE_CREE':'📋','ORDRE_MODIFIE':'✏️','ORDRE_ETAPE':'▶️','ORDRE_SUPPRIME':'🗑️','STOCK_AJOUTE':'📦','STOCK_MODIFIE':'✏️','TRANSFERT_DEMANDE':'🔄','TRANSFERT_VALIDE':'✅','TRANSFERT_REFUSE':'❌','CLIENT_AJOUTE':'👤','OP_AJOUTE':'👷','CONFIG_MDP':'🔑'};
+  const colorMap={'ORDRE_CREE':'var(--accent)','ORDRE_MODIFIE':'var(--cyan)','TRANSFERT_VALIDE':'var(--success)','TRANSFERT_REFUSE':'var(--danger)','STOCK_AJOUTE':'var(--success)'};
   document.getElementById('journal-container').innerHTML=list.length===0
     ?'<div style="text-align:center;color:var(--text-muted);padding:40px">Aucune activité enregistrée</div>'
     :list.map(j=>{
@@ -3744,7 +3769,16 @@ function renderJournal(){
       return`<div class="journal-row"><div class="journal-icon">${iconMap[j.action]||'📝'}</div>
         <div class="journal-content">
           <div class="journal-action" style="color:${colorMap[j.action]||'var(--text)'}">${j.action||'—'}</div>
-          <div class="journal-detail">${j.detail||'—'}</div>
+          <div class="journal-detail">${(()=>{
+            if(j.action==='ORDRE_MODIFIE'&&j.detail&&j.detail.includes(' — ')){
+              const parts=j.detail.split(' — ');
+              const ref=parts[0];
+              const changes=parts.slice(1).join(' — ');
+              const modifs=changes.split(' | ').map(m=>'<div style=\"font-size:11px;color:var(--text-muted);margin-top:2px\">• '+m+'</div>').join('');
+              return'<span style=\"font-weight:700\">'+ref+'</span>'+modifs;
+            }
+            return j.detail||'—';
+          })()}</div>
           <div style="margin-top:4px"><span style="font-size:11px;background:${site.bg||'rgba(255,255,255,0.05)'};color:${site.color};padding:1px 7px;border-radius:10px">${site.name}</span><span style="font-size:11px;color:var(--text-muted);margin-left:8px">${j.utilisateur||'—'}</span></div>
         </div>
         <div class="journal-meta">${j.created_at?new Date(j.created_at).toLocaleString('fr-FR'):'—'}</div>
