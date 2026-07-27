@@ -1320,15 +1320,26 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
           <div class="table-header" style="border-bottom-color:rgba(78,205,196,0.2)">
             <div class="table-title" style="color:var(--cyan)">🔌 Connexion Supabase</div>
           </div>
-          <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-            <div>
-              <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">Base de données connectée</div>
-              <div id="config-sb-url" style="font-family:monospace;font-size:12px;color:var(--cyan)">—</div>
+          <div style="padding:16px 20px">
+            <!-- URL -->
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">URL Supabase</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div id="config-sb-url" style="font-family:monospace;font-size:12px;color:var(--cyan);background:var(--steel);padding:8px 12px;border-radius:6px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
+                <button class="btn btn-secondary btn-sm" onclick="copierSbUrl()" title="Copier l'URL">📋</button>
+              </div>
             </div>
-            <div style="display:flex;gap:10px">
-              <button class="btn btn-secondary btn-sm" onclick="copierSbUrl()">📋 Copier l'URL</button>
-              <button class="btn btn-secondary btn-sm" style="border-color:var(--cyan);color:var(--cyan)" onclick="changerConnexion()">🔌 Changer la connexion</button>
+            <!-- CLÉ API -->
+            <div style="margin-bottom:16px">
+              <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Clé API (Publishable)</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div id="config-sb-key" style="font-family:monospace;font-size:12px;color:var(--text-muted);background:var(--steel);padding:8px 12px;border-radius:6px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">••••••••••••••••••••</div>
+                <button class="btn btn-secondary btn-sm" onclick="toggleSbKey()" id="btn-show-key" title="Afficher/Masquer">👁️</button>
+                <button class="btn btn-secondary btn-sm" onclick="copierSbKey()" title="Copier la clé">📋</button>
+              </div>
             </div>
+            <!-- BOUTON CHANGER -->
+            <button class="btn btn-secondary btn-sm" style="border-color:var(--cyan);color:var(--cyan)" onclick="changerConnexion()">🔌 Changer la connexion</button>
           </div>
         </div>
 
@@ -1616,36 +1627,47 @@ function sauvegarderSession(){
 
 // ── LOGIN ──
 window.addEventListener('DOMContentLoaded',async()=>{
-  // Restaurer les infos Supabase
-  const old=localStorage.getItem('hf_sb');
-  if(old){try{const c=JSON.parse(old);document.getElementById('sb-url').value=c.url||'';document.getElementById('sb-key').value=c.key||'';}catch(e){}}
-  // Restaurer session complète (site + rôle)
+  // Restaurer session complète (rafraîchissement page)
   const sess=localStorage.getItem('flexci_session');
   if(sess){
     try{
       const s=JSON.parse(sess);
-      // Expiry 24h
-      if(s.ts&&Date.now()-s.ts>86400000){localStorage.removeItem('flexci_session');return;}
-      if(!s.url||!s.key||!s.site)return;
-      showLoader('Reconnexion en cours...');
-      sb=supabase.createClient(s.url,s.key);
-      const {error}=await sb.from('clients').select('id').limit(1);
-      if(error&&error.code!=='PGRST116') throw error;
-      const {data:cfg}=await sb.from('config').select('*');
-      if(cfg) cfg.forEach(r=>{configData[r.key]=r.value;});
-      currentSite=s.site;
-      isAdmin=s.role==='admin';
-      isResponsable=s.role==='responsable';
-      document.getElementById('sb-url').value=s.url;
-      document.getElementById('sb-key').value=s.key;
-      hideLoader();
-      await initApp();
-      return;
-    }catch(e){
-      hideLoader();
-      localStorage.removeItem('flexci_session');
-    }
+      if(s.ts&&Date.now()-s.ts>86400000){localStorage.removeItem('flexci_session');}
+      else if(s.url&&s.key&&s.site){
+        showLoader('Reconnexion en cours...');
+        sb=supabase.createClient(s.url,s.key);
+        const {error}=await sb.from('clients').select('id').limit(1);
+        if(error&&error.code!=='PGRST116') throw error;
+        const {data:cfg}=await sb.from('config').select('*');
+        if(cfg) cfg.forEach(r=>{configData[r.key]=r.value;});
+        currentSite=s.site;
+        isAdmin=s.role==='admin';
+        isResponsable=s.role==='responsable';
+        document.getElementById('sb-url').value=s.url;
+        document.getElementById('sb-key').value=s.key;
+        hideLoader();
+        await initApp();
+        return;
+      }
+    }catch(e){hideLoader();localStorage.removeItem('flexci_session');}
   }
+  // Pas de session complète — vérifier si identifiants Supabase mémorisés
+  const saved=localStorage.getItem('hf_sb');
+  if(saved){
+    try{
+      const c=JSON.parse(saved);
+      if(c.url&&c.key){
+        document.getElementById('sb-url').value=c.url;
+        document.getElementById('sb-key').value=c.key;
+        // Aller directement au choix du site
+        sb=supabase.createClient(c.url,c.key);
+        showLoginStep('step-site');
+        return;
+      }
+    }catch(e){}
+  }
+  // Première utilisation → écran Supabase
+  showLoginStep('step-supabase');
 });
 
 async function connectSupabase(){
@@ -1734,19 +1756,30 @@ function showLoginStep(id){
 
 function logout(){
   if(!confirm('Se déconnecter ?')) return;
-  if(realtimeSub) sb.removeChannel(realtimeSub);
-  if(autoRefreshTimer) clearInterval(autoRefreshTimer);
+  if(realtimeSub)sb.removeChannel(realtimeSub);
+  if(autoRefreshTimer)clearInterval(autoRefreshTimer);
   currentSite=null;isAdmin=false;isResponsable=false;sb=null;
-  // Garder hf_sb (URL + clé Supabase) — effacer seulement la session site/rôle
   localStorage.removeItem('flexci_session');
   document.getElementById('app').classList.remove('visible');
   document.getElementById('login-screen').style.display='flex';
-  // Revenir directement à l'étape "Choix du site" (pas Supabase)
-  showLoginStep('step-site');
-  // Réinitialiser mot de passe et sélection site
   document.getElementById('login-password').value='';
   const siteErr=document.getElementById('err-login');
   if(siteErr)siteErr.style.display='none';
+  // Si les identifiants Supabase sont mémorisés → aller directement au choix du site
+  const saved=localStorage.getItem('hf_sb');
+  if(saved){
+    try{
+      const c=JSON.parse(saved);
+      if(c.url&&c.key){
+        sb=supabase.createClient(c.url,c.key);
+        document.getElementById('sb-url').value=c.url;
+        document.getElementById('sb-key').value=c.key;
+        showLoginStep('step-site');
+        return;
+      }
+    }catch(e){}
+  }
+  showLoginStep('step-supabase');
 }
 
 // ── INIT ──
@@ -4071,6 +4104,25 @@ function changerConnexion(){
   showLoginStep('step-supabase');
 }
 
+function toggleSbKey(){
+  const el=document.getElementById('config-sb-key');
+  const btn=document.getElementById('btn-show-key');
+  if(!el)return;
+  const masked=el.textContent.startsWith('•');
+  el.textContent=masked?(el._val||'—'):'••••••••••••••••••••';
+  el.style.color=masked?'var(--cyan)':'var(--text-muted)';
+  if(btn)btn.textContent=masked?'🙈':'👁️';
+}
+
+function copierSbKey(){
+  const saved=localStorage.getItem('hf_sb');
+  if(!saved)return;
+  try{
+    const c=JSON.parse(saved);
+    navigator.clipboard.writeText(c.key||'').then(()=>toast('✅ Clé API copiée !'));
+  }catch(e){toast('Erreur copie','error');}
+}
+
 function copierSbUrl(){
   const saved=localStorage.getItem('hf_sb');
   if(!saved)return;
@@ -4270,10 +4322,18 @@ function renderJournal(){
 // ── CONFIG ──
 function renderConfig(){
   if(!isAdmin)return;
-  // Afficher l'URL Supabase actuelle
+  // Afficher URL et clé Supabase
   const saved=localStorage.getItem('hf_sb');
-  if(saved){try{const c=JSON.parse(saved);document.getElementById('config-sb-url').textContent=c.url||'—';}catch(e){}}
-  const pwdKeys=['zone3','yopougon','sanpedro','reserve','admin'];
+  if(saved){
+    try{
+      const c=JSON.parse(saved);
+      const urlEl=document.getElementById('config-sb-url');
+      const keyEl=document.getElementById('config-sb-key');
+      if(urlEl)urlEl.textContent=c.url||'—';
+      if(keyEl)keyEl.textContent='••••••••••••••••••••';
+      keyEl._val=c.key||'';
+    }catch(e){}
+  }  const pwdKeys=['zone3','yopougon','sanpedro','reserve','admin'];
   const pwdNames={zone3:'Zone 3',yopougon:'Yopougon',sanpedro:'San Pedro',reserve:'Site Réservé',admin:'Administrateur'};
   document.getElementById('config-passwords-container').innerHTML=pwdKeys.map(key=>`
     <div class="config-row">
