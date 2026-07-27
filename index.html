@@ -1315,6 +1315,23 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
 
       <!-- CONFIG ADMIN -->
       <div class="page" id="page-config">
+        <!-- CONNEXION SUPABASE -->
+        <div class="table-card" style="margin-bottom:20px;border:1px solid rgba(78,205,196,0.3)">
+          <div class="table-header" style="border-bottom-color:rgba(78,205,196,0.2)">
+            <div class="table-title" style="color:var(--cyan)">🔌 Connexion Supabase</div>
+          </div>
+          <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">Base de données connectée</div>
+              <div id="config-sb-url" style="font-family:monospace;font-size:12px;color:var(--cyan)">—</div>
+            </div>
+            <div style="display:flex;gap:10px">
+              <button class="btn btn-secondary btn-sm" onclick="copierSbUrl()">📋 Copier l'URL</button>
+              <button class="btn btn-secondary btn-sm" style="border-color:var(--cyan);color:var(--cyan)" onclick="changerConnexion()">🔌 Changer la connexion</button>
+            </div>
+          </div>
+        </div>
+
         <div class="table-card" style="margin-bottom:20px">
           <div class="table-header"><div class="table-title">🔑 Mots de passe des sites</div></div>
           <div id="config-passwords-container"></div>
@@ -4040,6 +4057,29 @@ function renderVueGlobale(){
   }).join('');
 }
 
+function changerConnexion(){
+  if(!confirm('Changer la connexion Supabase ?\nVous serez redirigé vers l\'écran de connexion.'))return;
+  if(realtimeSub)sb.removeChannel(realtimeSub);
+  if(autoRefreshTimer)clearInterval(autoRefreshTimer);
+  currentSite=null;isAdmin=false;isResponsable=false;sb=null;
+  localStorage.removeItem('hf_sb');
+  localStorage.removeItem('flexci_session');
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('sb-url').value='';
+  document.getElementById('sb-key').value='';
+  showLoginStep('step-supabase');
+}
+
+function copierSbUrl(){
+  const saved=localStorage.getItem('hf_sb');
+  if(!saved)return;
+  try{
+    const c=JSON.parse(saved);
+    navigator.clipboard.writeText(c.url||'').then(()=>toast('✅ URL copiée !'));
+  }catch(e){toast('Erreur copie','error');}
+}
+
 // ── VALIDER ORDRES ADMIN ──
 function renderValiderOrdres(){
   if(!isAdmin&&!isResponsable)return;
@@ -4230,6 +4270,9 @@ function renderJournal(){
 // ── CONFIG ──
 function renderConfig(){
   if(!isAdmin)return;
+  // Afficher l'URL Supabase actuelle
+  const saved=localStorage.getItem('hf_sb');
+  if(saved){try{const c=JSON.parse(saved);document.getElementById('config-sb-url').textContent=c.url||'—';}catch(e){}}
   const pwdKeys=['zone3','yopougon','sanpedro','reserve','admin'];
   const pwdNames={zone3:'Zone 3',yopougon:'Yopougon',sanpedro:'San Pedro',reserve:'Site Réservé',admin:'Administrateur'};
   document.getElementById('config-passwords-container').innerHTML=pwdKeys.map(key=>`
