@@ -485,6 +485,16 @@ tr.empty td{text-align:center;color:var(--text-muted);padding:30px;}
           <div class="gestot-content" id="gcontent-identification">
             <div style="padding:12px 16px">
 
+              <!-- MODE TEST -->
+              <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:8px">
+                <span style="font-size:11px;color:var(--text-muted)">🧪 Mode test — saisie libre</span>
+                <label style="position:relative;display:inline-block;width:36px;height:20px;cursor:pointer">
+                  <input type="checkbox" id="toggle-mode-test" onchange="toggleModeTest()" style="opacity:0;width:0;height:0">
+                  <span style="position:absolute;inset:0;background:var(--border);border-radius:20px;transition:.3s" id="test-track">
+                    <span style="position:absolute;top:3px;left:3px;width:14px;height:14px;background:white;border-radius:50%;transition:.3s" id="test-thumb"></span>
+                  </span>
+                </label>
+              </div>
               <!-- VISUEL FLEXIBLE SVG COMPACT -->
               <div style="background:var(--steel);border-radius:8px;padding:8px 12px;margin-bottom:12px;text-align:center">
                 <svg id="flex-svg" viewBox="0 0 800 80" style="width:100%;max-width:100%;height:90px">
@@ -1689,6 +1699,20 @@ function showLoginStep(id){
   ['step-supabase','step-site','step-password'].forEach(s=>{
     document.getElementById(s).classList.toggle('active',s===id);
   });
+  // Si on affiche le choix du site et que sb n'est pas initialisé, le recréer depuis hf_sb
+  if(id==='step-site'&&!sb){
+    const saved=localStorage.getItem('hf_sb');
+    if(saved){
+      try{
+        const c=JSON.parse(saved);
+        if(c.url&&c.key){
+          sb=supabase.createClient(c.url,c.key);
+          document.getElementById('sb-url').value=c.url;
+          document.getElementById('sb-key').value=c.key;
+        }
+      }catch(e){}
+    }
+  }
 }
 
 function logout(){
@@ -1696,13 +1720,16 @@ function logout(){
   if(realtimeSub) sb.removeChannel(realtimeSub);
   if(autoRefreshTimer) clearInterval(autoRefreshTimer);
   currentSite=null;isAdmin=false;isResponsable=false;sb=null;
-  localStorage.removeItem('hf_sb');
+  // Garder hf_sb (URL + clé Supabase) — effacer seulement la session site/rôle
   localStorage.removeItem('flexci_session');
   document.getElementById('app').classList.remove('visible');
   document.getElementById('login-screen').style.display='flex';
-  showLoginStep('step-supabase');
-  document.getElementById('sb-url').value='';
-  document.getElementById('sb-key').value='';
+  // Revenir directement à l'étape "Choix du site" (pas Supabase)
+  showLoginStep('step-site');
+  // Réinitialiser mot de passe et sélection site
+  document.getElementById('login-password').value='';
+  const siteErr=document.getElementById('err-login');
+  if(siteErr)siteErr.style.display='none';
 }
 
 // ── INIT ──
@@ -4376,7 +4403,13 @@ function filterSel(selectId, query){
 
 function buildOptsArr(items){
   if(!items.length)return[];
-  return items.map(s=>({val:s.id,text:`${s.ref} | ${s.nom}${s.stock<=s.seuil?' ⚠️':''} (${s.stock} ${s.unite})`}));
+  // Dédupliquer par référence (admin voit 3x le même article - un par site)
+  const seen=new Set();
+  const unique=items.filter(s=>{
+    if(seen.has(s.ref))return false;
+    seen.add(s.ref);return true;
+  });
+  return unique.map(s=>({val:s.id,text:`${s.ref} | ${s.nom}${s.stock<=s.seuil?' ⚠️':''} (${s.stock} ${s.unite})`}));
 }
 
 function setSelectWithSearch(selectId, items){
@@ -4389,6 +4422,34 @@ function setSelectWithSearch(selectId, items){
   // Vider le filtre associé
   const filtEl=document.getElementById('filter-'+selectId);
   if(filtEl)filtEl.value='';
+}
+
+function toggleModeTest(){
+  const active=document.getElementById('toggle-mode-test').checked;
+  const track=document.getElementById('test-track');
+  const thumb=document.getElementById('test-thumb');
+  if(track){track.style.background=active?'var(--accent)':'var(--border)';}
+  if(thumb){thumb.style.left=active?'19px':'3px';}
+  // Basculer entre select et input texte libre pour chaque composant
+  const comps=[
+    {sel:'new-jupeA-select',filt:'filter-new-jupeA-select',ref:'new-jupeA-ref'},
+    {sel:'new-emboutA-select',filt:'filter-new-emboutA-select',ref:'new-emboutA-ref'},
+    {sel:'new-raccordA-select',filt:'filter-new-raccordA-select',ref:'new-raccordA-ref'},
+    {sel:'new-jupeB-select',filt:'filter-new-jupeB-select',ref:'new-jupeB-ref'},
+    {sel:'new-emboutB-select',filt:'filter-new-emboutB-select',ref:'new-emboutB-ref'},
+    {sel:'new-raccordB-select',filt:'filter-new-raccordB-select',ref:'new-raccordB-ref'},
+    {sel:'new-flex-select',filt:'filter-new-flex-select',ref:'new-ref-flex'},
+  ];
+  comps.forEach(({sel,filt,ref})=>{
+    const selEl=document.getElementById(sel);
+    const filtEl=document.getElementById(filt);
+    const refEl=document.getElementById(ref);
+    if(selEl)selEl.style.display=active?'none':'';
+    if(filtEl)filtEl.style.display=active?'none':'';
+    if(refEl)refEl.readOnly=!active;
+  });
+  if(active) toast('🧪 Mode test activé — saisie libre des références');
+  else toast('Mode test désactivé');
 }
 
 // ── GESTOT TABS ──
